@@ -15,12 +15,12 @@ export default function EmployeeLayout({
   const { user, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated || (user?.role !== 'employee' && user?.role !== 'admin')) {
+    if (!isAuthenticated || user?.role !== 'employee') {
       router.push('/login');
     }
   }, [isAuthenticated, user, router]);
 
-  if (!isAuthenticated || (user?.role !== 'employee' && user?.role !== 'admin')) {
+  if (!isAuthenticated || user?.role !== 'employee') {
     return null;
   }
 

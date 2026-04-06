@@ -1,15 +1,15 @@
 import { TicketStage, TicketStatus, UserRole, TicketPriority } from './types';
 
 export const TICKET_STAGES: Record<TicketStage, { label: string; color: string; description: string }> = {
-  'intake': { label: 'Intake', color: 'bg-blue-100 text-blue-800', description: 'Initial client intake' },
-  'document-collection': { label: 'Document Collection', color: 'bg-purple-100 text-purple-800', description: 'Gathering required documents' },
-  'review': { label: 'Review', color: 'bg-yellow-100 text-yellow-800', description: 'Reviewing submitted documents' },
-  'preparation': { label: 'Preparation', color: 'bg-orange-100 text-orange-800', description: 'Preparing tax return' },
-  'filing': { label: 'Filing', color: 'bg-green-100 text-green-800', description: 'Filing the return' },
-  'amendment': { label: 'Amendment', color: 'bg-red-100 text-red-800', description: 'Amendment processing' },
-  'follow-up': { label: 'Follow-up', color: 'bg-cyan-100 text-cyan-800', description: 'Post-filing follow-up' },
+  'pending-info': { label: 'Pending Info', color: 'bg-blue-100 text-blue-800', description: 'Waiting for client information' },
+  'under-prep': { label: 'Under Prep', color: 'bg-purple-100 text-purple-800', description: 'Tax return in preparation' },
+  'draft-sent': { label: 'Draft Sent', color: 'bg-yellow-100 text-yellow-800', description: 'Draft sent to client' },
+  'awaiting-approval': { label: 'Awaiting Approval', color: 'bg-orange-100 text-orange-800', description: 'Awaiting client approval' },
+  'payment-received': { label: 'Payment Received', color: 'bg-teal-100 text-teal-800', description: 'Payment received' },
+  '8879-sent': { label: '8879 Sent', color: 'bg-cyan-100 text-cyan-800', description: 'Form 8879 sent to client' },
+  '8879-received': { label: '8879 Received', color: 'bg-green-100 text-green-800', description: 'Form 8879 received and signed' },
+  'filing-completed': { label: 'Filing Completed', color: 'bg-emerald-100 text-emerald-800', description: 'Return filed with IRS' },
   'closed': { label: 'Closed', color: 'bg-gray-100 text-gray-800', description: 'Case closed' },
-  'on-hold': { label: 'On Hold', color: 'bg-gray-200 text-gray-700', description: 'Temporarily on hold' },
 };
 
 export const TICKET_STATUSES: Record<TicketStatus, { label: string; icon: string }> = {
@@ -63,9 +63,21 @@ export const DEPARTMENTS = [
   'Administration',
 ];
 
+// Unified sidebar navigation for both Admin and Employee - shows all stages
+export const STAGE_NAVIGATION = [
+  { id: 'pending-info', label: 'Pending Info' },
+  { id: 'under-prep', label: 'Under Prep' },
+  { id: 'draft-sent', label: 'Draft Sent' },
+  { id: 'awaiting-approval', label: 'Awaiting Approval' },
+  { id: 'payment-received', label: 'Payment Received' },
+  { id: '8879-sent', label: '8879 Sent' },
+  { id: '8879-received', label: '8879 Received' },
+  { id: 'filing-completed', label: 'Filing Completed' },
+  { id: 'closed', label: 'Closed' },
+];
+
 export const ADMIN_ROUTES = [
   { href: '/admin', label: 'Dashboard', icon: 'grid' },
-  { href: '/admin/queues', label: 'Ticket Queues', icon: 'list' },
   { href: '/admin/employees', label: 'Employees', icon: 'users' },
   { href: '/admin/reports', label: 'Reports', icon: 'bar-chart' },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: 'log' },
@@ -74,7 +86,6 @@ export const ADMIN_ROUTES = [
 
 export const EMPLOYEE_ROUTES = [
   { href: '/employee', label: 'Dashboard', icon: 'grid' },
-  { href: '/employee/queues', label: 'My Queues', icon: 'list' },
   { href: '/employee/messages', label: 'Messages', icon: 'mail' },
 ];
 

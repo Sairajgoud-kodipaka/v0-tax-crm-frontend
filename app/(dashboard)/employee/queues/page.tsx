@@ -1,91 +1,105 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useSearchParams } from 'next/navigation';
+import { useAuthStore } from '@/lib/store';
 import { mockTickets } from '@/lib/mock-data';
-import { TICKET_STAGES, PRIORITIES } from '@/lib/constants';
-import { TicketStage } from '@/lib/types';
+import { TICKET_STAGES } from '@/lib/constants';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { TicketStage } from '@/lib/types';
 
 export default function EmployeeQueuesPage() {
-  const stages: TicketStage[] = ['intake', 'document-collection', 'review', 'preparation', 'filing', 'amendment', 'follow-up', 'closed', 'on-hold'];
-  const [selectedStage, setSelectedStage] = useState<TicketStage>('document-collection');
+  const searchParams = useSearchParams();
+  const { user } = useAuthStore();
+  const selectedStage = (searchParams.get('stage') as TicketStage) || 'pending-info';
 
-  // Filter tickets assigned to current employee
-  const myAssignedTickets = mockTickets.filter(t => t.assignedToId === 'employee-1');
-  const stageTickets = myAssignedTickets.filter(t => t.stage === selectedStage);
+  // Filter tickets by selected stage AND assigned to current employee
+  const filteredTickets = mockTickets.filter(
+    ticket => ticket.stage === selectedStage && ticket.assignedToId === user?.id
+  );
+
+  const stageInfo = TICKET_STAGES[selectedStage];
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'critical':
+        return 'bg-red-100 text-red-800';
+      case 'high':
+        return 'bg-orange-100 text-orange-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Info Banner */}
-      <div className="p-4 bg-secondary/10 border border-secondary/20 rounded-lg">
-        <p className="text-sm text-foreground">
-          You have <strong>{myAssignedTickets.length}</strong> tickets assigned to you across all stages.
+      {/* Stage Header */}
+      <div>
+        <h1 className="text-3xl font-bold mb-2">{stageInfo.label}</h1>
+        <p className="text-muted-foreground">{stageInfo.description}</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} assigned to you in this stage
         </p>
       </div>
 
-      {/* Stage Navigation */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-        {stages.map((stage) => {
-          const stageTicketCount = myAssignedTickets.filter(t => t.stage === stage).length;
-          return (
-            <button
-              key={stage}
-              onClick={() => setSelectedStage(stage)}
-              className={`p-3 rounded-lg border-2 transition-all text-left ${
-                selectedStage === stage
-                  ? `border-primary bg-primary/10`
-                  : `border-border hover:border-primary/50`
-              }`}
-            >
-              <p className="font-medium text-sm text-foreground">{TICKET_STAGES[stage].label}</p>
-              <p className="text-lg font-bold text-primary">{stageTicketCount}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Selected Stage Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{TICKET_STAGES[selectedStage].label}</CardTitle>
-          <CardDescription>{TICKET_STAGES[selectedStage].description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stageTickets.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No tickets in this stage</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {stageTickets.map((ticket) => (
-                <Link
-                  key={ticket.id}
-                  href={`/employee/tickets/${ticket.id}`}
-                  className="block p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all"
-                >
-                  <div className="flex items-start justify-between gap-4">
+      {/* Tickets List */}
+      {filteredTickets.length > 0 ? (
+        <div className="grid gap-4">
+          {filteredTickets.map((ticket) => (
+            <Link key={ticket.id} href={`/employee/tickets/${ticket.id}`}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className="font-medium text-foreground hover:text-primary">{ticket.subject}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{ticket.clientName}</p>
-                      <div className="flex gap-2 mt-2">
-                        <span className="text-xs bg-muted px-2 py-1 rounded">{ticket.filingType}</span>
-                      </div>
+                      <h3 className="font-semibold text-lg mb-1">{ticket.subject}</h3>
+                      <p className="text-sm text-muted-foreground mb-2">{ticket.clientName}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${PRIORITIES[ticket.priority].color}`}>
-                        {PRIORITIES[ticket.priority].label}
-                      </span>
-                      <p className="text-xs text-muted-foreground capitalize">{ticket.status}</p>
+                    <Badge variant="outline" className={getPriorityColor(ticket.priority)}>
+                      {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Filing Type</p>
+                      <p className="font-medium">{ticket.filingType}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Tax Year</p>
+                      <p className="font-medium">{ticket.taxYear}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Status</p>
+                      <p className="font-medium capitalize">{ticket.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Client Email</p>
+                      <p className="font-medium text-sm">{ticket.clientEmail}</p>
                     </div>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    Updated: {new Date(ticket.updatedAt).toLocaleDateString()}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground py-8">
+              No tickets assigned to you in this stage yet.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

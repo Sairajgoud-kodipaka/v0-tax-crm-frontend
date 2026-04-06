@@ -10,17 +10,17 @@ export interface User {
   createdAt: Date;
 }
 
-// Ticket/Case Types
+// Ticket/Case Types - Updated stage names for tax workflow
 export type TicketStage = 
-  | 'intake'
-  | 'document-collection'
-  | 'review'
-  | 'preparation'
-  | 'filing'
-  | 'amendment'
-  | 'follow-up'
-  | 'closed'
-  | 'on-hold';
+  | 'pending-info'
+  | 'under-prep'
+  | 'draft-sent'
+  | 'awaiting-approval'
+  | 'payment-received'
+  | '8879-sent'
+  | '8879-received'
+  | 'filing-completed'
+  | 'closed';
 
 export type TicketStatus = 'open' | 'in-progress' | 'pending' | 'completed' | 'on-hold';
 

@@ -7,17 +7,20 @@ import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { StageSidebar } from '@/components/stage-sidebar';
 
 interface DashboardLayoutProps {
   children: ReactNode;
   sidebarNavigation: Array<{ href: string; label: string; icon: string }>;
   title: string;
+  currentStage?: string;
 }
 
 export function DashboardLayout({
   children,
   sidebarNavigation,
   title,
+  currentStage,
 }: DashboardLayoutProps) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -32,9 +35,11 @@ export function DashboardLayout({
     return null;
   }
 
+  const isAdminOrEmployee = user.role === 'admin' || user.role === 'employee';
+
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
+      {/* Main Sidebar with Navigation */}
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-20'
@@ -85,6 +90,13 @@ export function DashboardLayout({
           </Button>
         </div>
       </aside>
+
+      {/* Stage Sidebar - Only for Admin and Employee */}
+      {isAdminOrEmployee && (
+        <aside className="w-56 bg-muted border-r border-border overflow-y-auto">
+          <StageSidebar role={user.role as 'admin' | 'employee'} currentStage={currentStage} />
+        </aside>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
