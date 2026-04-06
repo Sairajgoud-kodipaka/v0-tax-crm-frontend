@@ -1,155 +1,167 @@
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockTickets } from '@/lib/mock-data';
+import { useState } from 'react';
+import { mockTickets, mockMessages } from '@/lib/mock-data';
 import { TICKET_STAGES } from '@/lib/constants';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { MessageCircle, Upload } from 'lucide-react';
 import Link from 'next/link';
-import { FileText, MessageSquare, Clock } from 'lucide-react';
 
 export default function ClientDashboard() {
-  // Get tickets for current client (client-1)
-  const myCases = mockTickets.filter(t => t.clientId === 'client-1');
-  const activeCount = myCases.filter(t => t.stage !== 'closed').length;
-  const completedCount = myCases.filter(t => t.stage === 'closed').length;
+  const clientTickets = mockTickets.filter(t => t.clientName === 'John Doe');
+  const [selectedTicket, setSelectedTicket] = useState(clientTickets[0]);
+  const ticketMessages = mockMessages.filter(m => m.ticketId === selectedTicket?.id);
+
+  const getStageNumber = (stage: string): number => {
+    const stageKeys = Object.keys(TICKET_STAGES);
+    return stageKeys.indexOf(stage) + 1;
+  };
+
+  const getTotalStages = (): number => {
+    return Object.keys(TICKET_STAGES).length;
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Cases</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-primary">{myCases.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">All your tax cases</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Cases</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-secondary">{activeCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Currently in progress</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-accent">{completedCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">Successfully filed</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* My Cases */}
+    <div className="space-y-6 max-w-4xl">
+      {/* Tax Filing Status */}
       <Card>
         <CardHeader>
-          <CardTitle>My Tax Cases</CardTitle>
-          <CardDescription>Your current and past tax return cases</CardDescription>
+          <CardTitle>Your Tax Filing Status</CardTitle>
         </CardHeader>
-        <CardContent>
-          {myCases.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">You don&apos;t have any cases yet</p>
-            </div>
+        <CardContent className="space-y-4">
+          {selectedTicket ? (
+            <>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">CURRENT STAGE</p>
+                <p className="text-2xl font-bold capitalize">{TICKET_STAGES[selectedTicket.stage]?.label}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Progress</p>
+                <p className="text-lg font-semibold">Step {getStageNumber(selectedTicket.stage)} of {getTotalStages()}</p>
+              </div>
+              <p className="text-muted-foreground">
+                {selectedTicket.stage === 'pending-info' && "We're collecting your tax information."}
+                {selectedTicket.stage === 'under-prep' && "We're preparing your tax documents."}
+                {selectedTicket.stage === 'draft-sent' && "Please review the draft documents we've prepared."}
+                {selectedTicket.stage === 'awaiting-approval' && "Awaiting your approval on the documents."}
+                {selectedTicket.stage === 'payment-received' && "Payment received. Preparing final documents."}
+                {selectedTicket.stage === '8879-sent' && "Please sign and return the authorization form."}
+                {selectedTicket.stage === '8879-received' && "Authorization received. Filing your return."}
+                {selectedTicket.stage === 'filing-completed' && "Your return has been filed successfully."}
+                {selectedTicket.stage === 'closed' && "Your case is complete."}
+              </p>
+            </>
           ) : (
-            <div className="space-y-3">
-              {myCases.map((ticket) => (
-                <Link
-                  key={ticket.id}
-                  href={`/client/cases/${ticket.id}`}
-                  className="block p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-foreground hover:text-primary">{ticket.subject}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{ticket.filingType} • Tax Year {ticket.taxYear}</p>
-                      <div className="flex gap-2 mt-2 text-xs">
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <FileText className="w-4 h-4" />
-                          {ticket.documents.length} documents
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <MessageSquare className="w-4 h-4" />
-                          Updates
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${TICKET_STAGES[ticket.stage].color}`}>
-                        {TICKET_STAGES[ticket.stage].label}
-                      </span>
-                      {ticket.dueDate && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Due: {ticket.dueDate.toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <p className="text-muted-foreground">No active cases found</p>
           )}
         </CardContent>
       </Card>
 
-      {/* What Happens Next */}
-      <Card>
-        <CardHeader>
-          <CardTitle>The Tax Return Process</CardTitle>
-          <CardDescription>Here&apos;s how your case progresses through our system</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[
-              { stage: 'Intake', description: 'Initial information gathering and client setup' },
-              { stage: 'Document Collection', description: 'Upload your W2s, 1099s, and other documents' },
-              { stage: 'Review', description: 'Our team reviews your documents for completeness' },
-              { stage: 'Preparation', description: 'Your tax return is prepared and reviewed' },
-              { stage: 'Filing', description: 'Your return is filed with the IRS' },
-              { stage: 'Follow-up', description: 'Confirmation and any necessary follow-up' },
-            ].map((step, idx) => (
-              <div key={idx} className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold flex-shrink-0">
-                  {idx + 1}
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{step.stage}</p>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* What You Need to Do Now */}
+      {selectedTicket && (
+        <Card>
+          <CardHeader>
+            <CardTitle>What you need to do now</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {selectedTicket.stage === 'pending-info' && (
+              <>
+                <p className="text-muted-foreground">Please upload your W-2s, 1099s, and deduction documents.</p>
+                <Button className="gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload Documents
+                </Button>
+              </>
+            )}
+            {selectedTicket.stage === 'draft-sent' && (
+              <>
+                <p className="text-muted-foreground">Please review the draft documents and approve or request changes.</p>
+                <Link href={`/client/cases/${selectedTicket.id}`}>
+                  <Button>Review Draft</Button>
+                </Link>
+              </>
+            )}
+            {selectedTicket.stage === 'payment-received' && (
+              <>
+                <p className="text-muted-foreground">Thank you for payment. We're preparing final documents.</p>
+              </>
+            )}
+            {selectedTicket.stage === '8879-sent' && (
+              <>
+                <p className="text-muted-foreground">Please sign Form 8879 and return it to us as soon as possible.</p>
+                <Link href={`/client/cases/${selectedTicket.id}`}>
+                  <Button>Review & Sign Form</Button>
+                </Link>
+              </>
+            )}
+            {(selectedTicket.stage === '8879-received' || selectedTicket.stage === 'filing-completed' || selectedTicket.stage === 'closed') && (
+              <p className="text-muted-foreground">Your case is progressing as scheduled.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Need Help */}
-      <Card className="bg-secondary/10 border-secondary/20">
-        <CardHeader>
-          <CardTitle className="text-secondary">Need Help?</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-foreground mb-4">
-            Have questions about your case? Our team is here to help. Send us a message through your case details or contact us directly.
-          </p>
-          <div className="flex gap-2">
-            <Link href="/client/messages" className="text-sm font-medium text-primary hover:underline">
-              Message Support
-            </Link>
-            <span className="text-muted-foreground">•</span>
-            <a href="tel:5551234567" className="text-sm font-medium text-primary hover:underline">
-              Call (555) 123-4567
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Messages from Tax Preparer */}
+      {ticketMessages.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              Messages from your tax preparer
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {ticketMessages
+                .filter(m => m.senderRole === 'employee')
+                .slice(0, 3)
+                .map(msg => (
+                  <div key={msg.id} className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm italic">"{msg.content}"</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {new Date(msg.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+            </div>
+            {ticketMessages.length > 3 && (
+              <Link href={`/client/cases/${selectedTicket.id}`}>
+                <Button variant="outline" className="w-full mt-4">View All Messages</Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Your Cases */}
+      {clientTickets.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Cases</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {clientTickets.map(ticket => (
+                <button
+                  key={ticket.id}
+                  onClick={() => setSelectedTicket(ticket)}
+                  className={`w-full p-3 rounded-lg text-left transition-colors ${
+                    selectedTicket.id === ticket.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-muted/80'
+                  }`}
+                >
+                  <p className="font-medium text-sm">Ticket #{ticket.id}</p>
+                  <p className="text-xs opacity-75">{ticket.filingType} - {ticket.taxYear}</p>
+                  <p className="text-xs opacity-75 mt-1">{TICKET_STAGES[ticket.stage]?.label}</p>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
