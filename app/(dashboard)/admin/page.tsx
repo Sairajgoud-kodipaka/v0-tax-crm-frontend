@@ -9,10 +9,13 @@ const chartColors = ['#1e3a8a', '#047857', '#7c3aed', '#db2777', '#ea580c'];
 
 export default function AdminDashboard() {
   const stats = mockDashboardStats;
-  const stageData = Object.entries(stats.stageBreakdown).map(([stage, count]) => ({
-    name: TICKET_STAGES[stage as keyof typeof TICKET_STAGES].label,
-    value: count,
-  }));
+  const stageData = Object.entries(stats.stageBreakdown).map(([stage, count]) => {
+    const stageInfo = TICKET_STAGES[stage as keyof typeof TICKET_STAGES];
+    return {
+      name: stageInfo?.label || stage,
+      value: count,
+    };
+  });
 
   const recentTickets = mockTickets.slice(0, 5);
 
@@ -144,9 +147,14 @@ export default function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">{ticket.clientName} • {ticket.filingType}</p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${TICKET_STAGES[ticket.stage].color}`}>
-                    {TICKET_STAGES[ticket.stage].label}
-                  </span>
+                  {(() => {
+                    const stageInfo = TICKET_STAGES[ticket.stage];
+                    return (
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${stageInfo?.color || 'bg-gray-100 text-gray-800'}`}>
+                        {stageInfo?.label || ticket.stage}
+                      </span>
+                    );
+                  })()}
                   <span className="text-sm text-muted-foreground">{ticket.assignedToName || 'Unassigned'}</span>
                 </div>
               </div>
