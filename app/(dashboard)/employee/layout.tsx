@@ -4,7 +4,6 @@ import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
-import { EMPLOYEE_ROUTES } from '@/lib/constants';
 
 export default function EmployeeLayout({
   children,
@@ -26,7 +25,6 @@ export default function EmployeeLayout({
 
   return (
     <DashboardLayout
-      sidebarNavigation={EMPLOYEE_ROUTES}
       title="Employee Dashboard"
     >
       {children}

@@ -26,7 +26,7 @@ export default function AdminLayout({
 
   return (
     <DashboardLayout
-      sidebarNavigation={ADMIN_ROUTES}
+      adminSidebarNavigation={ADMIN_ROUTES}
       title="Admin Dashboard"
     >
       {children}
