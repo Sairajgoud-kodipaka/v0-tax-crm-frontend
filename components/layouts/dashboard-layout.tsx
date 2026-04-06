@@ -89,7 +89,7 @@ export function DashboardLayout({
                     )}
                   >
                     <span className="w-4 h-4 flex-shrink-0" />
-                    {sidebarOpen && <span>{stage.label}</span>}
+                    {sidebarOpen ? <span>{stage.label}</span> : null}
                   </Link>
                 );
               })}
@@ -125,7 +125,7 @@ export function DashboardLayout({
                     {item.icon === 'file' && '📄'}
                     {item.icon === 'form' && '📋'}
                   </span>
-                  {sidebarOpen && <span>{item.label}</span>}
+                  {sidebarOpen ? <span>{item.label}</span> : null}
                 </Link>
               );
             })}
@@ -146,7 +146,7 @@ export function DashboardLayout({
             className="w-full justify-start gap-2 text-destructive hover:text-destructive"
           >
             <LogOut className="w-4 h-4" />
-            {sidebarOpen && 'Logout'}
+            {sidebarOpen ? 'Logout' : null}
           </Button>
         </div>
       </aside>
