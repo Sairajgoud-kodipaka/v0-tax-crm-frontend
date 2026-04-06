@@ -1,0 +1,252 @@
+'use client';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { mockTickets, mockMessages } from '@/lib/mock-data';
+import { TICKET_STAGES, PRIORITIES } from '@/lib/constants';
+import { useState } from 'react';
+import Link from 'next/link';
+import { ChevronLeft, Upload, MessageSquare, FileText } from 'lucide-react';
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default function EmployeeTicketDetailPage({ params }: PageProps) {
+  const id = (params as any).id || 'ticket-001';
+  const ticket = mockTickets.find(t => t.id === id);
+  const ticketMessages = mockMessages.filter(m => m.ticketId === id);
+  const [newMessage, setNewMessage] = useState('');
+  const [nextStage, setNextStage] = useState('');
+
+  if (!ticket) {
+    return (
+      <div className="space-y-6">
+        <Button variant="outline" asChild>
+          <Link href="/employee/queues">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Back to Queues
+          </Link>
+        </Button>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">Ticket not found</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Button variant="outline" asChild>
+          <Link href="/employee/queues">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Back to Queues
+          </Link>
+        </Button>
+        <Button className="bg-primary text-primary-foreground">Update Status</Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="col-span-2 space-y-6">
+          {/* Ticket Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl">{ticket.subject}</CardTitle>
+              <CardDescription>{ticket.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Client Name</label>
+                  <p className="text-lg text-foreground">{ticket.clientName}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Filing Type</label>
+                  <p className="text-lg text-foreground">{ticket.filingType}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Tax Year</label>
+                  <p className="text-lg text-foreground">{ticket.taxYear}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Client Email</label>
+                  <p className="text-lg text-foreground">{ticket.clientEmail}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Documents */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Documents ({ticket.documents.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ticket.documents.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No documents uploaded yet</p>
+              ) : (
+                <div className="space-y-2">
+                  {ticket.documents.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                      <div>
+                        <p className="font-medium text-foreground">{doc.name}</p>
+                        <p className="text-xs text-muted-foreground">{Math.round(doc.size / 1024)} KB • {doc.uploadedAt.toLocaleDateString()}</p>
+                      </div>
+                      <Button variant="ghost" size="sm">Download</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Messages */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Client Messages ({ticketMessages.filter(m => !m.isInternal).length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {ticketMessages.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No messages yet</p>
+                ) : (
+                  ticketMessages
+                    .filter(m => !m.isInternal)
+                    .map((msg) => (
+                      <div key={msg.id} className="p-4 bg-muted rounded-lg border border-border">
+                        <div className="flex items-start justify-between">
+                          <p className="font-medium text-foreground">{msg.senderName}</p>
+                          <p className="text-xs text-muted-foreground">{msg.createdAt.toLocaleDateString()}</p>
+                        </div>
+                        <p className="mt-2 text-sm text-foreground">{msg.content}</p>
+                      </div>
+                    ))
+                )}
+              </div>
+
+              {/* New Message */}
+              <div className="pt-4 border-t border-border space-y-2">
+                <Textarea
+                  placeholder="Reply to client..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  className="min-h-20"
+                />
+                <Button className="bg-primary text-primary-foreground w-full">Send Message</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Internal Notes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Internal Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {ticketMessages
+                .filter(m => m.isInternal)
+                .map((msg) => (
+                  <div key={msg.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-sm text-foreground">{msg.senderName}</p>
+                      <p className="text-xs text-muted-foreground">{msg.createdAt.toLocaleDateString()}</p>
+                    </div>
+                    <p className="mt-1 text-sm text-foreground">{msg.content}</p>
+                  </div>
+                ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {/* Status Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Stage & Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Current Stage</label>
+                <div className={`px-3 py-2 rounded-lg text-sm font-medium mt-1 ${TICKET_STAGES[ticket.stage].color}`}>
+                  {TICKET_STAGES[ticket.stage].label}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Move to Stage</label>
+                <select
+                  value={nextStage}
+                  onChange={(e) => setNextStage(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                >
+                  <option value="">Select a stage...</option>
+                  {Object.entries(TICKET_STAGES).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {value.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Current Status</label>
+                <div className="px-3 py-2 rounded-lg bg-muted text-sm font-medium mt-1 capitalize">
+                  {ticket.status}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Priority</label>
+                <div className={`px-3 py-2 rounded-lg text-sm font-medium mt-1 ${PRIORITIES[ticket.priority].color}`}>
+                  {PRIORITIES[ticket.priority].label}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dates Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Important Dates</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Created</label>
+                <p className="text-sm text-foreground mt-1">{ticket.createdAt.toLocaleDateString()}</p>
+              </div>
+              {ticket.dueDate && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Due Date</label>
+                  <p className="text-sm text-foreground mt-1">{ticket.dueDate.toLocaleDateString()}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Client Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Client Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div>
+                <p className="text-sm font-medium text-foreground">{ticket.clientName}</p>
+                <p className="text-xs text-muted-foreground">{ticket.clientEmail}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
