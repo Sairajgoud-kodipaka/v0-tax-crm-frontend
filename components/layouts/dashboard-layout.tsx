@@ -13,6 +13,10 @@ import { cn } from '@/lib/utils';
 interface DashboardLayoutProps {
   children: ReactNode;
   adminSidebarNavigation?: Array<{ href: string; label: string; icon: string }>;
+  /** Employee dashboard: Dashboard, Queues, Messages, etc. */
+  employeeSidebarNavigation?: Array<{ href: string; label: string; icon: string }>;
+  /** Client portal: simple help / marketing links (not workflow stages) */
+  clientSidebarNavigation?: Array<{ href: string; label: string }>;
   title: string;
   currentStage?: string;
 }
@@ -32,6 +36,8 @@ const STAGES = [
 export function DashboardLayout({
   children,
   adminSidebarNavigation = [],
+  employeeSidebarNavigation = [],
+  clientSidebarNavigation = [],
   title,
   currentStage,
 }: DashboardLayoutProps) {
@@ -50,20 +56,33 @@ export function DashboardLayout({
   }
 
   const isAdmin = user.role === 'admin';
+  const isEmployee = user.role === 'employee';
   const isAdminOrEmployee = user.role === 'admin' || user.role === 'employee';
+  const isClient = user.role === 'client';
   const baseUrl = isAdmin ? '/admin' : '/employee';
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Primary Sidebar - Workflow Stages for Admin/Employee, Basic Nav for Client */}
+      {/* Primary Sidebar - Workflow Stages for Admin/Employee; utility nav for Client */}
       <aside
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 flex flex-col overflow-y-auto`}
+        className={cn(
+          sidebarOpen ? 'w-64' : 'w-20',
+          'transition-all duration-300 flex flex-col overflow-y-auto border-r',
+          isClient
+            ? 'bg-zinc-950 text-zinc-100 border-zinc-800'
+            : 'bg-sidebar text-sidebar-foreground border-sidebar-border',
+        )}
       >
         {/* Header */}
-        <div className="p-6 border-b border-sidebar-border flex-shrink-0">
-          <h1 className="text-xl font-bold text-sidebar-primary">TaxCRM</h1>
+        <div
+          className={cn(
+            'p-6 border-b flex-shrink-0',
+            isClient ? 'border-zinc-800' : 'border-sidebar-border',
+          )}
+        >
+          <h1 className={cn('text-xl font-bold', isClient ? 'text-zinc-50' : 'text-sidebar-primary')}>
+            TaxCRM
+          </h1>
         </div>
 
         {/* Workflow Stages (Admin & Employee Only) */}
@@ -97,7 +116,36 @@ export function DashboardLayout({
           </nav>
         )}
 
-        {/* Admin-Only Navigation Items */}
+        {/* Client utility navigation */}
+        {isClient && clientSidebarNavigation.length > 0 && (
+          <nav className="flex-1 px-3 py-6">
+            <ul className="space-y-1">
+              {clientSidebarNavigation.map((item) => {
+                const isActive =
+                  item.href === '/client'
+                    ? pathname === '/client'
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        'block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-amber-400 text-zinc-950'
+                          : 'text-zinc-300 hover:bg-zinc-800 hover:text-white',
+                      )}
+                    >
+                      {sidebarOpen ? item.label : '•'}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
+
+        {/* Admin navigation */}
         {isAdmin && (
           <nav className="border-t border-sidebar-border px-4 py-4 space-y-2 flex-shrink-0">
             {adminSidebarNavigation.map((item) => {
@@ -132,21 +180,75 @@ export function DashboardLayout({
           </nav>
         )}
 
+        {/* Employee navigation (Dashboard, Messages) — queues are under Workflow Stages */}
+        {isEmployee && employeeSidebarNavigation.length > 0 && (
+          <nav className="border-t border-sidebar-border px-4 py-4 space-y-2 flex-shrink-0">
+            {employeeSidebarNavigation.map((item) => {
+              const isActive =
+                item.href === '/employee'
+                  ? pathname === '/employee' || pathname === '/employee/'
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  )}
+                >
+                  <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                    {item.icon === 'grid' && '📊'}
+                    {item.icon === 'list' && '📋'}
+                    {item.icon === 'users' && '👥'}
+                    {item.icon === 'bar-chart' && '📈'}
+                    {item.icon === 'log' && '📝'}
+                    {item.icon === 'settings' && '⚙️'}
+                    {item.icon === 'mail' && '✉️'}
+                    {item.icon === 'briefcase' && '💼'}
+                    {item.icon === 'file' && '📄'}
+                    {item.icon === 'form' && '📋'}
+                  </span>
+                  {sidebarOpen ? <span>{item.label}</span> : null}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+
         {/* Footer with Logout */}
-        <div className="border-t border-sidebar-border p-4 space-y-2 flex-shrink-0">
+        <div
+          className={cn(
+            'border-t p-4 space-y-2 flex-shrink-0',
+            isClient ? 'border-zinc-800' : 'border-sidebar-border',
+          )}
+        >
           <button
+            type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full flex items-center justify-center px-4 py-2 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            className={cn(
+              'w-full flex items-center justify-center px-4 py-2 rounded-lg transition-colors',
+              isClient
+                ? 'hover:bg-zinc-800 text-zinc-300'
+                : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+            )}
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+            className={cn(
+              'w-full justify-start gap-2',
+              isClient
+                ? 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:text-white'
+                : 'text-destructive hover:text-destructive',
+            )}
           >
             <LogOut className="w-4 h-4" />
-            {sidebarOpen ? 'Logout' : null}
+            {sidebarOpen ? (isClient ? 'Sign out' : 'Logout') : null}
           </Button>
         </div>
       </aside>
@@ -155,7 +257,11 @@ export function DashboardLayout({
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+          {title ? (
+            <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+          ) : (
+            <span className="sr-only">TaxCRM</span>
+          )}
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{user.name}</p>

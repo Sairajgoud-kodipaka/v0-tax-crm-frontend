@@ -1,0 +1,21 @@
+/** Shared options for "Visa Type at the end of 2024" (taxpayer & dependents). */
+export const VISA_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: '—' },
+  { value: 'b1', label: 'B1' },
+  { value: 'b2', label: 'B2' },
+  { value: 'h1-a', label: 'H1-A' },
+  { value: 'h1-b', label: 'H1-B' },
+  { value: 'h4', label: 'H4' },
+  { value: 'l2', label: 'L2' },
+  { value: 'l1-a', label: 'L1-A' },
+  { value: 'l1-b', label: 'L1-B' },
+  { value: 'f1-cpt', label: 'F1-CPT' },
+  { value: 'f1-opt', label: 'F1-OPT' },
+  { value: 'j1', label: 'J1' },
+  { value: 'j2', label: 'J2' },
+  { value: 'q', label: 'Q' },
+  { value: 'ead', label: 'EAD' },
+  { value: 'green-card', label: 'Green Card' },
+  { value: 'us-citizen', label: 'US Citizen' },
+  { value: 'others-comments', label: 'Others - Please mention in comments' },
+];

@@ -25,7 +25,7 @@ export default function TicketDetailPage({ params }: PageProps) {
   if (!ticket) {
     return (
       <div className="space-y-4">
-        <Link href="/employee/queues">
+        <Link href="/employee/queues?stage=pending-info">
           <Button variant="outline" className="gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Queues
@@ -53,7 +53,7 @@ export default function TicketDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <Link href="/employee/queues">
+      <Link href="/employee/queues?stage=pending-info">
         <Button variant="outline" className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back to Queues

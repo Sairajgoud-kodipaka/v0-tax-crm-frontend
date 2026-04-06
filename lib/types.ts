@@ -42,6 +42,11 @@ export interface Ticket {
   filingType: string; // Individual, Corporate, Partnership, etc.
   documents: Document[];
   messages: Message[];
+  /** Display reference e.g. 22497 in client ticket tables */
+  shortCode?: string;
+  drafts?: TicketDraftFile[];
+  invoices?: TicketInvoiceRow[];
+  finalDocuments?: TicketFinalDocument[];
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date;
@@ -56,6 +61,30 @@ export interface Document {
   url: string;
   uploadedBy: string;
   uploadedAt: Date;
+}
+
+/** Preparer-shared drafts shown on the client Tax Drafts tab */
+export interface TicketDraftFile {
+  id: string;
+  name: string;
+  sharedAt: Date;
+}
+
+export interface TicketInvoiceRow {
+  id: string;
+  invoiceNumber: string;
+  description: string;
+  amountCents: number;
+  status: 'unpaid' | 'paid';
+  dueDate?: Date;
+  paidAt?: Date;
+}
+
+/** Filed / final package PDFs for the client Final Documents tab */
+export interface TicketFinalDocument {
+  id: string;
+  name: string;
+  availableAt?: Date;
 }
 
 export interface Message {

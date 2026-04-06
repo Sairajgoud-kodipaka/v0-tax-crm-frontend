@@ -89,11 +89,13 @@ export const EMPLOYEE_ROUTES = [
   { href: '/employee/messages', label: 'Messages', icon: 'mail' },
 ];
 
+/** Client portal: marketing / help links — not employee workflow stages */
 export const CLIENT_ROUTES = [
-  { href: '/client', label: 'My Cases', icon: 'briefcase' },
-  { href: '/client/documents', label: 'Documents', icon: 'file' },
-  { href: '/client/messages', label: 'Messages', icon: 'mail' },
-  { href: '/client/tax-organizer', label: 'Tax Organizer', icon: 'form' },
+  { href: '/client', label: 'Home' },
+  { href: '/client/videos', label: 'Tax Videos for NRI' },
+  { href: '/client/cashback', label: 'Get $10 Cash Back' },
+  { href: '/client/feedback', label: 'Provide Feedback' },
+  { href: '/client/contact', label: 'Contact Us' },
 ];
 
 export const DEMO_CREDENTIALS = [

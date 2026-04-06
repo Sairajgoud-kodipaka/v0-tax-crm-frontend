@@ -1,9 +1,18 @@
 'use client';
 
 import { ReactNode, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
+import { EMPLOYEE_ROUTES } from '@/lib/constants';
+
+function employeeHeaderTitle(pathname: string): string {
+  if (pathname === '/employee' || pathname === '/employee/') return 'Dashboard';
+  if (pathname.startsWith('/employee/messages')) return 'Messages';
+  if (pathname.startsWith('/employee/queues')) return 'Queues';
+  if (pathname.startsWith('/employee/tickets/')) return '';
+  return 'Employee';
+}
 
 export default function EmployeeLayout({
   children,
@@ -11,6 +20,7 @@ export default function EmployeeLayout({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated } = useAuthStore();
 
   useEffect(() => {
@@ -25,7 +35,8 @@ export default function EmployeeLayout({
 
   return (
     <DashboardLayout
-      title="Employee Dashboard"
+      title={employeeHeaderTitle(pathname)}
+      employeeSidebarNavigation={EMPLOYEE_ROUTES}
     >
       {children}
     </DashboardLayout>

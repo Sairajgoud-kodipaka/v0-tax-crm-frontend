@@ -1,6 +1,7 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { mockTickets } from '@/lib/mock-data';
 import { TICKET_STAGES } from '@/lib/constants';
@@ -9,10 +10,34 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { TicketStage } from '@/lib/types';
 
+const DEFAULT_QUEUE_STAGE: TicketStage = 'pending-info';
+
 export default function EmployeeQueuesPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
-  const selectedStage = (searchParams.get('stage') as TicketStage) || 'pending-info';
+  const stageParam = searchParams.get('stage');
+  const stageIsValid = Boolean(stageParam && stageParam in TICKET_STAGES);
+
+  useEffect(() => {
+    if (!stageParam) {
+      router.replace(`/employee/queues?stage=${DEFAULT_QUEUE_STAGE}`);
+      return;
+    }
+    if (!(stageParam in TICKET_STAGES)) {
+      router.replace(`/employee/queues?stage=${DEFAULT_QUEUE_STAGE}`);
+    }
+  }, [stageParam, router]);
+
+  if (!stageIsValid) {
+    return (
+      <div className="flex items-center justify-center p-12 text-sm text-muted-foreground">
+        Redirecting…
+      </div>
+    );
+  }
+
+  const selectedStage = stageParam as TicketStage;
 
   // Filter tickets by selected stage AND assigned to current employee
   const filteredTickets = mockTickets.filter(
