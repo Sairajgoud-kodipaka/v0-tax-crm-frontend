@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import { clientStatusPresentation, displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
@@ -92,8 +91,7 @@ export function StaffTicketCaseTabs({
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
-  const pathname = usePathname();
-  const currentPageLabel = `${pathname} / ${activeTabLabel}`;
+  const currentPageLabel = `Case Details / ${activeTabLabel}`;
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
   const { onlineOthers, typingHint, clientCurrentTab, clientOnline, notifyTyping } = useTicketPresenceTyping(
     ticket.id,

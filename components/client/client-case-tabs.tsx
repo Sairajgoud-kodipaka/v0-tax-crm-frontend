@@ -5,7 +5,6 @@ import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
@@ -78,8 +77,7 @@ export function ClientCaseTabs({
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
-  const pathname = usePathname();
-  const currentPageLabel = `${pathname} / ${activeTabLabel}`;
+  const currentPageLabel = `Case Details / ${activeTabLabel}`;
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const { lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,
