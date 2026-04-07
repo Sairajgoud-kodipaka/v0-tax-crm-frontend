@@ -102,7 +102,7 @@ export function StaffTicketCaseTabs({
     ticket.clientId,
   );
   const seenLabel = readReceiptLabel(messages, viewerUserId, viewerIsStaff, reads);
-  const primaryTrigger = ticketCasePrimaryTabTriggerClassName();
+  const primaryTrigger = cn(ticketCasePrimaryTabTriggerClassName(), 'whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:py-3 sm:text-sm');
   const openLinkOrNotify = (url: string | undefined, emptyMessage: string) => {
     if (!url) {
       toast({ title: emptyMessage });
@@ -121,19 +121,20 @@ export function StaffTicketCaseTabs({
   }, [ticket.finalDocuments?.length, finalUploading]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
       <TicketDetailDataRefresh ticketId={ticket.id} />
-      <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="space-y-1">
+      <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
           <h1 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
             {ticketHeaderTitle(ref, ticket)}
           </h1>
-          <p className="text-xs text-muted-foreground">
+          <p className="truncate text-xs text-muted-foreground">
             {ticket.clientName}
             {ticket.clientEmail ? ` · ${ticket.clientEmail}` : ''}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1 text-right">
+        <div className="flex flex-col gap-1 text-left sm:items-end sm:text-right">
           <p className="text-[11px] font-medium leading-tight text-muted-foreground">
             {clientOnline && clientCurrentTab ? `Client current page: ${clientCurrentTab}` : 'Client is offline'}
           </p>
@@ -152,19 +153,22 @@ export function StaffTicketCaseTabs({
           </span>
         </div>
       </div>
+      </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as (typeof caseTabs)[number][0])} className="gap-0">
-        <TabsList className={ticketCasePrimaryTabsListClassName}>
+        <div className="overflow-x-auto border-b border-border bg-black">
+        <TabsList className={cn(ticketCasePrimaryTabsListClassName, 'min-w-max flex-nowrap border-b-0')}>
           {caseTabs.map(([id, label]) => (
             <TabsTrigger key={id} value={id} className={primaryTrigger}>
               {label}
             </TabsTrigger>
           ))}
         </TabsList>
+        </div>
 
         <TabsContent value="messages" className="mt-0 border-0 p-0">
-          <div className="flex min-h-[360px] flex-col border-t border-border bg-background">
-            <ScrollArea className="flex-1 p-4">
+          <div className="flex min-h-[360px] flex-col bg-background">
+            <ScrollArea className="flex-1 p-3 sm:p-4">
               <div className="mb-2 space-y-1 rounded-lg border border-border/60 bg-muted/15 px-3 py-2 text-[11px] leading-snug text-muted-foreground sm:text-xs">
                 {onlineOthers.length > 0 ? (
                   <p>
@@ -175,7 +179,7 @@ export function StaffTicketCaseTabs({
                 {typingHint ? <p className="text-foreground">{typingHint}</p> : null}
                 {seenLabel ? <p>{seenLabel}</p> : null}
               </div>
-              <div className="min-h-[240px] space-y-3 pr-2 text-foreground">
+              <div className="min-h-[240px] space-y-3 pr-1 text-foreground sm:pr-2">
                 {messages.length === 0 ? (
                   <p className="py-16 text-center text-sm text-muted-foreground">
                     No messages yet. Client and team messages will appear here.
@@ -189,8 +193,8 @@ export function StaffTicketCaseTabs({
                         msg.isInternal
                           ? 'border-border bg-muted/50 dark:bg-muted/30'
                           : msg.senderId === ticket.clientId
-                            ? 'ml-4 border-primary/30 bg-primary/5 sm:ml-8'
-                            : 'mr-4 border-border bg-muted/40 sm:mr-8',
+                            ? 'ml-2 border-primary/30 bg-primary/5 sm:ml-8'
+                            : 'mr-2 border-border bg-muted/40 sm:mr-8',
                       )}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -216,7 +220,7 @@ export function StaffTicketCaseTabs({
               </div>
             </ScrollArea>
 
-            <div className="border-t border-border p-4">
+            <div className="border-t border-border p-3 sm:p-4">
               <form action={sendStaffMessageFormAction} className="space-y-2">
                 <input type="hidden" name="ticketId" value={ticket.id} />
                 <Textarea
@@ -244,10 +248,11 @@ export function StaffTicketCaseTabs({
           <TaxOrganizerPanel key={ticket.id} ticketId={ticket.id} initialAnswers={organizerAnswers} />
         </TabsContent>
 
-        <TabsContent value="documents" className="mt-0 p-4 sm:p-6">
+        <TabsContent value="documents" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Documents</div>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -286,6 +291,7 @@ export function StaffTicketCaseTabs({
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
             <p className="text-sm text-muted-foreground">
               Same document list as the client portal; uploads are managed from the client account.
@@ -293,10 +299,11 @@ export function StaffTicketCaseTabs({
           </div>
         </TabsContent>
 
-        <TabsContent value="drafts" className="mt-0 p-4 sm:p-6">
+        <TabsContent value="drafts" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Tax Return Drafts</div>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -345,6 +352,7 @@ export function StaffTicketCaseTabs({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
             <form
               ref={draftUploadFormRef}
@@ -380,7 +388,7 @@ export function StaffTicketCaseTabs({
           </div>
         </TabsContent>
 
-        <TabsContent value="invoices" className="mt-0 p-4 sm:p-6">
+        <TabsContent value="invoices" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Invoices</div>
@@ -444,6 +452,7 @@ export function StaffTicketCaseTabs({
             </div>
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Uploaded Invoice Files</div>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -483,6 +492,7 @@ export function StaffTicketCaseTabs({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
             <form
               ref={invoiceUploadFormRef}
@@ -518,10 +528,11 @@ export function StaffTicketCaseTabs({
           </div>
         </TabsContent>
 
-        <TabsContent value="final" className="mt-0 p-4 sm:p-6">
+        <TabsContent value="final" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Final filing package</div>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -572,6 +583,7 @@ export function StaffTicketCaseTabs({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
             <form
               ref={finalUploadFormRef}

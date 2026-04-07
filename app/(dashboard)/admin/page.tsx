@@ -4,6 +4,7 @@ import { TICKET_STAGES, STAGE_NAVIGATION } from '@/lib/constants';
 import { getAdminDashboardData } from '@/lib/data/admin-stats';
 import { AdminDashboardCharts } from '@/app/(dashboard)/admin/admin-dashboard-charts';
 import { QueueRealtimeRefresh } from '@/components/realtime/queue-realtime-refresh';
+import { AdminDeleteTicketButton } from '@/app/(dashboard)/admin/admin-delete-ticket-button';
 
 export default async function AdminDashboard() {
   const stats = await getAdminDashboardData();
@@ -70,26 +71,31 @@ export default async function AdminDashboard() {
             {stats.recentTickets.map((ticket) => {
               const stageInfo = TICKET_STAGES[ticket.stage];
               return (
-                <Link
+                <div
                   key={ticket.id}
-                  href={`/admin/tickets/${ticket.id}`}
-                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex-1">
+                  <Link
+                    href={`/admin/tickets/${ticket.id}`}
+                    className="flex-1 rounded-md transition-colors hover:bg-muted/30"
+                  >
                     <h3 className="font-medium text-foreground">{ticket.subject}</h3>
                     <p className="text-sm text-muted-foreground">
                       {ticket.clientName} • {ticket.filingType}
                     </p>
+                    <div className="mt-2 flex items-center gap-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${stageInfo?.color || 'bg-gray-100 text-gray-800'}`}
+                      >
+                        {stageInfo?.label || ticket.stage}
+                      </span>
+                      <span className="text-sm text-muted-foreground">{ticket.assignedToName || 'Unassigned'}</span>
+                    </div>
+                  </Link>
+                  <div className="shrink-0">
+                    <AdminDeleteTicketButton ticketId={ticket.id} />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${stageInfo?.color || 'bg-gray-100 text-gray-800'}`}
-                    >
-                      {stageInfo?.label || ticket.stage}
-                    </span>
-                    <span className="text-sm text-muted-foreground">{ticket.assignedToName || 'Unassigned'}</span>
-                  </div>
-                </Link>
+                </div>
               );
             })}
           </div>

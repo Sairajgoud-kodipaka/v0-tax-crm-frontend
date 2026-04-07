@@ -23,3 +23,26 @@ export async function updateTicketStageAction(ticketId: string, toStage: TicketS
   revalidatePath('/admin/queues');
   revalidatePath('/employee/queues');
 }
+
+export async function deleteTicketByAdminAction(ticketId: string) {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { data: profile, error: roleError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (roleError || profile?.role !== 'admin') {
+    throw new Error('Only admins can delete tickets');
+  }
+
+  const { error } = await supabase.from('tickets').delete().eq('id', ticketId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/queues');
+}

@@ -1,7 +1,7 @@
 'use server';
 
 import { sendTicketMessageAction } from '@/app/actions/messages';
-import { updateTicketStageAction } from '@/app/actions/tickets';
+import { deleteTicketByAdminAction, updateTicketStageAction } from '@/app/actions/tickets';
 import { markInvoicePaidMvpAction } from '@/app/actions/payments';
 import { deleteTicketDocumentAction, uploadTicketDocumentAction } from '@/app/actions/documents';
 import type { TicketStage } from '@/lib/types';
@@ -69,4 +69,10 @@ export async function staffUploadFinalPackageFormAction(formData: FormData) {
   const ticketId = formData.get('ticketId') as string;
   if (!ticketId) throw new Error('Invalid');
   await uploadTicketDocumentAction(ticketId, formData, 'final');
+}
+
+export async function adminDeleteTicketFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  if (!ticketId) throw new Error('Invalid');
+  await deleteTicketByAdminAction(ticketId);
 }
