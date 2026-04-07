@@ -5,6 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Search, Send } from 'lucide-react';
 import { getSessionUser, getServerSupabase } from '@/lib/data/tickets-queries';
 import { sendClientMessageFormAction } from '@/app/actions/forms';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { cn } from '@/lib/utils';
 
 type MessageRow = {
   id: string;
@@ -155,7 +157,7 @@ export default async function ClientMessagesPage({
                         <div
                           className={`max-w-xs rounded-lg px-4 py-2 ${
                             msg.sender_id === session.id
-                              ? 'bg-primary text-primary-foreground'
+                              ? 'bg-black text-white'
                               : 'border border-border bg-card text-foreground'
                           }`}
                         >
@@ -172,7 +174,7 @@ export default async function ClientMessagesPage({
                 <form action={sendClientMessageFormAction} className="space-y-2 border-t border-border pt-4">
                   <input type="hidden" name="ticketId" value={selectedTicketId} />
                   <Textarea name="body" placeholder="Type your message..." className="min-h-20 resize-none" required />
-                  <Button type="submit" className="w-full gap-2 bg-primary text-primary-foreground">
+                  <Button type="submit" variant="default" className={cn('w-full gap-2', ticketCaseBlackCtaButtonClassName)}>
                     <Send className="h-4 w-4" />
                     Send Message
                   </Button>

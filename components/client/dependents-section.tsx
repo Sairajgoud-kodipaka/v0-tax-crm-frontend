@@ -22,6 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { VisaTypeSelect } from '@/components/client/visa-type-select';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
 
 const selectClassName =
@@ -98,8 +99,9 @@ export function DependentsSection() {
         <h2 className="text-base font-semibold text-foreground">Dependents</h2>
         <Button
           type="button"
+          variant="default"
           onClick={() => setOpen(true)}
-          className="gap-2 bg-amber-400 text-zinc-900 hover:bg-amber-500"
+          className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}
         >
           <Plus className="size-4" />
           Add Dependent
@@ -109,12 +111,12 @@ export function DependentsSection() {
       <div className="overflow-hidden rounded-lg border border-border">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-border bg-zinc-700 hover:bg-zinc-700">
-              <TableHead className="font-semibold text-white">First Name</TableHead>
-              <TableHead className="font-semibold text-white">Last Name</TableHead>
-              <TableHead className="font-semibold text-white">Relationship</TableHead>
-              <TableHead className="w-24 text-right font-semibold text-white" />
-              <TableHead className="w-24 text-right font-semibold text-white" />
+            <TableRow className="border-b border-border bg-secondary hover:bg-secondary">
+              <TableHead className="font-semibold text-secondary-foreground">First Name</TableHead>
+              <TableHead className="font-semibold text-secondary-foreground">Last Name</TableHead>
+              <TableHead className="font-semibold text-secondary-foreground">Relationship</TableHead>
+              <TableHead className="w-24 text-right font-semibold text-secondary-foreground" />
+              <TableHead className="w-24 text-right font-semibold text-secondary-foreground" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -155,7 +157,7 @@ export function DependentsSection() {
       </div>
 
       <div className="flex justify-end">
-        <Button type="button" variant="outline" className="gap-2 border-amber-400 text-amber-900 hover:bg-amber-50">
+        <Button type="button" variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
           Next Page
           <ChevronRight className="size-4" />
         </Button>
@@ -166,12 +168,12 @@ export function DependentsSection() {
           showCloseButton={false}
           className="max-h-[min(90vh,800px)] gap-0 overflow-hidden p-0 sm:max-w-2xl"
         >
-          <div className="flex items-center justify-between bg-zinc-700 px-4 py-3 text-white">
-            <DialogTitle className="text-base font-semibold text-white">Add Dependent</DialogTitle>
+          <div className="flex items-center justify-between bg-secondary px-4 py-3 text-secondary-foreground">
+            <DialogTitle className="text-base font-semibold text-secondary-foreground">Add Dependent</DialogTitle>
             <DialogClose asChild>
               <button
                 type="button"
-                className="rounded-sm text-xl leading-none text-white opacity-90 hover:opacity-100"
+                className="rounded-sm text-xl leading-none text-secondary-foreground opacity-90 hover:opacity-100"
                 aria-label="Close"
               >
                 ×
@@ -311,7 +313,7 @@ export function DependentsSection() {
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-amber-400 text-zinc-900 hover:bg-amber-500">
+                <Button type="submit" variant="default" className={ticketCaseBlackCtaButtonClassName}>
                   Save dependent
                 </Button>
               </div>

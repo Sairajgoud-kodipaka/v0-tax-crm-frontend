@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
 
 const selectClassName = cn(
@@ -81,7 +82,7 @@ export function ExpensesSection() {
       </div>
 
       <div className="flex justify-start pt-1">
-        <Button type="button" className="bg-amber-400 text-zinc-900 hover:bg-amber-500">
+        <Button type="button" variant="default" className={ticketCaseBlackCtaButtonClassName}>
           Save
         </Button>
       </div>

@@ -1,3 +1,4 @@
+import { TICKET_STAGES } from './constants';
 import type { Ticket } from './types';
 
 export function displayTicketRef(ticket: Ticket): string {
@@ -15,12 +16,36 @@ export function formatServiceDetails(ticket: Ticket): string {
   return `${ticket.taxYear} - ${filing}`;
 }
 
+/** Badge label + styles for the current workflow stage (client + staff case headers). */
 export function clientStatusPresentation(ticket: Ticket): { label: string; className: string } {
-  if (ticket.stage === 'closed' || ticket.stage === 'filing-completed') {
-    return { label: 'Completed', className: 'bg-zinc-200 text-zinc-900 border border-zinc-300' };
+  const info = TICKET_STAGES[ticket.stage];
+  if (!info) {
+    return {
+      label: ticket.stage,
+      className: 'bg-muted text-foreground border border-border',
+    };
   }
-  return {
-    label: 'Pending Information',
-    className: 'bg-amber-400 text-amber-950 border border-amber-500',
-  };
+  return { label: info.label, className: info.color };
+}
+
+/** One line for ticket header: local time, 12-hour; adds date when not today. */
+export function formatTicketLastUpdatedLine(at: Date): string {
+  if (!(at instanceof Date) || Number.isNaN(at.getTime())) return '';
+  const time = at.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const today = new Date();
+  const sameDay =
+    at.getFullYear() === today.getFullYear() &&
+    at.getMonth() === today.getMonth() &&
+    at.getDate() === today.getDate();
+  if (sameDay) return `Last updated at ${time}`;
+  const datePart = at.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return `Last updated ${datePart} at ${time}`;
 }

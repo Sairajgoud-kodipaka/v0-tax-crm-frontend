@@ -52,7 +52,7 @@ export function CreateTicketForm() {
         <SubmitButton />
       </div>
       {state.message ? (
-        <p className={`text-sm ${state.ok ? 'text-emerald-600' : 'text-destructive'}`}>{state.message}</p>
+        <p className={`text-sm ${state.ok ? 'text-primary' : 'text-destructive'}`}>{state.message}</p>
       ) : null}
     </form>
   );

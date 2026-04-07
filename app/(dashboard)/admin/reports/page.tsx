@@ -176,9 +176,9 @@ export default async function ReportsPage() {
             {performanceMonths.map((m) => (
               <div key={m.key} className="grid grid-cols-4 items-center gap-2 rounded border border-border p-2 text-sm">
                 <span className="font-medium">{m.label}</span>
-                <span className="text-emerald-600">Done: {m.completed}</span>
+                <span className="text-primary">Done: {m.completed}</span>
                 <span className="text-blue-600">Pending: {m.pending}</span>
-                <span className="text-amber-600">Overdue: {m.overdue}</span>
+                <span className="text-destructive">Overdue: {m.overdue}</span>
               </div>
             ))}
           </CardContent>

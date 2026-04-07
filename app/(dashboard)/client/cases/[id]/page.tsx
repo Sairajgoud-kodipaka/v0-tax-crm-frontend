@@ -27,6 +27,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
   }
 
   const ticketRaw = JSON.parse(JSON.stringify(ticket)) as Record<string, unknown>;
+  const organizerAnswers = await getTaxOrganizerAnswersAction(id);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -36,7 +37,13 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
           Back to Home
         </Link>
       </Button>
-      <ClientCaseTabs ticketRaw={ticketRaw} organizerAnswers={organizerAnswers} />
+      <ClientCaseTabs
+        ticketRaw={ticketRaw}
+        organizerAnswers={organizerAnswers}
+        viewerUserId={session.id}
+        viewerName={session.name}
+        viewerRole={session.role}
+      />
     </div>
   );
 }

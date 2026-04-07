@@ -1,15 +1,16 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
+import Link from 'next/link';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
-import Link from 'next/link';
+import { TICKET_STAGES } from '@/lib/constants';
 import { clientStatusPresentation, displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
-import { sendClientMessageFormAction, payInvoiceFormAction, clientUploadDocumentFormAction } from '@/app/actions/forms';
+import { sendStaffMessageFormAction } from '@/app/actions/forms';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -20,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Upload } from 'lucide-react';
 import { TaxOrganizerPanel } from '@/components/client/tax-organizer-panel';
 import {
   ticketCaseBlackCtaButtonClassName,
@@ -46,36 +46,24 @@ function ticketHeaderTitle(ref: string, ticket: ReturnType<typeof hydrateTicket>
   return `Ticket #${ref} - ${ticketTitleLine(ticket)}`;
 }
 
-/** Pass JSON-serializable ticket from a Server Component (dates as ISO strings). */
-export function ClientCaseTabs({
+/** Same tabbed shell as the client case view — Messages, Tax Organizer (3-level layout), documents, drafts, invoices, final. */
+export function StaffTicketCaseTabs({
   ticketRaw,
   organizerAnswers = {},
   viewerUserId,
   viewerName,
-  viewerRole = 'client',
+  viewerRole,
 }: {
   ticketRaw: Record<string, unknown>;
   organizerAnswers?: Record<string, unknown>;
   viewerUserId: string;
   viewerName: string;
-  viewerRole?: UserRole;
+  viewerRole: UserRole;
 }) {
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
-  const { stage: liveStage, lastUpdatedAt } = useTicketStageRealtime(
-    ticket.id,
-    ticket.stage,
-    ticket.updatedAt,
-  );
-  const ticketForBadge = useMemo(() => ({ ...ticket, stage: liveStage }), [ticket, liveStage]);
   const ref = displayTicketRef(ticket);
-  const status = clientStatusPresentation(ticketForBadge);
-  const messagesLive = useTicketMessagesRealtime(ticket.id, ticket.messages ?? [], {
-    hideInternal: true,
-  });
-  const messages = useMemo(
-    () => messagesLive.filter((m) => !m.isInternal),
-    [messagesLive],
-  );
+  const status = clientStatusPresentation(ticket);
+  const messages = useTicketMessagesRealtime(ticket.id, ticket.messages ?? [], { hideInternal: false });
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
   const { onlineOthers, typingHint, notifyTyping } = useTicketPresenceTyping(
@@ -87,12 +75,18 @@ export function ClientCaseTabs({
   const primaryTrigger = ticketCasePrimaryTabTriggerClassName();
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <TicketDetailDataRefresh ticketId={ticket.id} />
       <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <h1 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
-          {ticketHeaderTitle(ref, ticket)}
-        </h1>
+        <div className="space-y-1">
+          <h1 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+            {ticketHeaderTitle(ref, ticket)}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {ticket.clientName}
+            {ticket.clientEmail ? ` · ${ticket.clientEmail}` : ''}
+          </p>
+        </div>
         <div className="flex flex-col items-end gap-1">
           <span
             className={cn(
@@ -103,7 +97,7 @@ export function ClientCaseTabs({
             {status.label}
           </span>
           <span className="text-[11px] leading-tight text-muted-foreground tabular-nums">
-            {formatTicketLastUpdatedLine(lastUpdatedAt)}
+            {formatTicketLastUpdatedLine(ticket.updatedAt)}
           </span>
         </div>
       </div>
@@ -142,7 +136,7 @@ export function ClientCaseTabs({
               <div className="min-h-[240px] space-y-3 pr-2 text-foreground">
                 {messages.length === 0 ? (
                   <p className="py-16 text-center text-sm text-muted-foreground">
-                    No messages yet. Your conversation with the team will appear here.
+                    No messages yet. Client and team messages will appear here.
                   </p>
                 ) : (
                   messages.map((msg) => (
@@ -150,16 +144,28 @@ export function ClientCaseTabs({
                       key={msg.id}
                       className={cn(
                         'rounded-lg border px-4 py-3 text-sm',
-                        msg.senderId === ticket.clientId
-                          ? 'ml-8 border-primary/30 bg-primary/5'
-                          : 'mr-8 border-border bg-muted/40',
+                        msg.isInternal
+                          ? 'border-border bg-muted/50 dark:bg-muted/30'
+                          : msg.senderId === ticket.clientId
+                            ? 'ml-4 border-primary/30 bg-primary/5 sm:ml-8'
+                            : 'mr-4 border-border bg-muted/40 sm:mr-8',
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium text-foreground">{msg.senderName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {msg.createdAt.toLocaleDateString()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {msg.isInternal && (
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                              Internal
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {msg.senderRole}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {msg.createdAt.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                       <p className="mt-2 whitespace-pre-wrap text-foreground">{msg.content}</p>
                     </div>
@@ -167,17 +173,47 @@ export function ClientCaseTabs({
                 )}
               </div>
             </ScrollArea>
+
+            {(ticket.history ?? []).length > 0 && (
+              <div className="border-t border-border px-4 py-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Stage history
+                </p>
+                <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
+                  {(ticket.history ?? []).map((entry) => (
+                    <div key={entry.id} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{entry.actorName}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {entry.fromStage ? TICKET_STAGES[entry.fromStage].label : 'Created'}
+                        </Badge>
+                        <span className="text-muted-foreground">to</span>
+                        <Badge className="text-[10px]">{TICKET_STAGES[entry.toStage].label}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{entry.createdAt.toLocaleString()}</p>
+                      {entry.note && <p className="mt-1 text-xs">{entry.note}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="border-t border-border p-4">
-              <form action={sendClientMessageFormAction} className="space-y-3">
+              <form action={sendStaffMessageFormAction} className="space-y-2">
                 <input type="hidden" name="ticketId" value={ticket.id} />
                 <Textarea
                   name="body"
-                  placeholder="Type your message…"
+                  placeholder="Add a client message or internal note…"
                   className="min-h-[88px] resize-none bg-background"
                   required
                   onInput={() => notifyTyping()}
                 />
-                <div className="flex justify-end">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="internal" className="rounded border-input" />
+                    Internal note
+                  </label>
                   <Button type="submit" variant="default" className={ticketCaseBlackCtaButtonClassName}>
                     Send
                   </Button>
@@ -188,19 +224,13 @@ export function ClientCaseTabs({
         </TabsContent>
 
         <TabsContent value="organizer" className="mt-0 border-0 p-0">
-          <TaxOrganizerPanel
-            key={ticket.id}
-            ticketId={ticket.id}
-            initialAnswers={organizerAnswers}
-          />
+          <TaxOrganizerPanel key={ticket.id} ticketId={ticket.id} initialAnswers={organizerAnswers} />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-0 p-4 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
-              <div className="border-b border-border px-4 py-3 text-sm font-medium">
-                My Uploaded Documents
-              </div>
+              <div className="border-b border-border px-4 py-3 text-sm font-medium">Documents</div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -213,7 +243,7 @@ export function ClientCaseTabs({
                   {ticket.documents.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={3} className="text-sm text-muted-foreground">
-                        No documents uploaded yet.
+                        No documents for this ticket yet.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -240,23 +270,16 @@ export function ClientCaseTabs({
                 </TableBody>
               </Table>
             </div>
-            <form action={clientUploadDocumentFormAction} encType="multipart/form-data" className="space-y-2">
-              <input type="hidden" name="ticketId" value={ticket.id} />
-              <input type="file" name="file" required className="text-sm" />
-              <Button type="submit" variant="outline" className="gap-2">
-                <Upload className="size-4" />
-                Upload New Document
-              </Button>
-            </form>
+            <p className="text-sm text-muted-foreground">
+              Same document list as the client portal; uploads are managed from the client account.
+            </p>
           </div>
         </TabsContent>
 
         <TabsContent value="drafts" className="mt-0 p-4 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
-              <div className="border-b border-border px-4 py-3 text-sm font-medium">
-                Tax Return Drafts
-              </div>
+              <div className="border-b border-border px-4 py-3 text-sm font-medium">Tax Return Drafts</div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -301,9 +324,6 @@ export function ClientCaseTabs({
                 </TableBody>
               </Table>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Review drafts shared by your tax team. Final filing copies appear under Final Documents.
-            </p>
           </div>
         </TabsContent>
 
@@ -349,42 +369,23 @@ export function ClientCaseTabs({
                           Paid on {inv.paidAt.toLocaleDateString()}
                         </span>
                       )}
-                      <div className="ml-auto flex gap-2">
+                      <div className="ml-auto">
                         <Button variant="outline" size="sm" type="button">
                           View
                         </Button>
-                        {inv.status === 'unpaid' && (
-                          <form action={payInvoiceFormAction}>
-                            <input type="hidden" name="invoiceId" value={inv.id} />
-                            <input type="hidden" name="ticketId" value={ticket.id} />
-                            <Button size="sm" type="submit" variant="default" className={ticketCaseBlackCtaButtonClassName}>
-                              Pay
-                            </Button>
-                          </form>
-                        )}
-                        {inv.status === 'paid' && (
-                          <Button variant="ghost" size="sm" type="button">
-                            View receipt
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Questions about billing? Use Messages to contact your team.
-            </p>
           </div>
         </TabsContent>
 
         <TabsContent value="final" className="mt-0 p-4 sm:p-6">
           <div className="space-y-4">
             <div className="rounded-lg border border-border">
-              <div className="border-b border-border px-4 py-3 text-sm font-medium">
-                Final filing package
-              </div>
+              <div className="border-b border-border px-4 py-3 text-sm font-medium">Final filing package</div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -397,7 +398,7 @@ export function ClientCaseTabs({
                   {(!ticket.finalDocuments || ticket.finalDocuments.length === 0) && (
                     <TableRow>
                       <TableCell colSpan={3} className="text-sm text-muted-foreground">
-                        Final documents will appear here once your return is completed.
+                        Final documents will appear here once the return is completed.
                       </TableCell>
                     </TableRow>
                   )}
@@ -431,9 +432,6 @@ export function ClientCaseTabs({
                 </TableBody>
               </Table>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Official completed documents for this ticket once filing is finalized.
-            </p>
           </div>
         </TabsContent>
       </Tabs>

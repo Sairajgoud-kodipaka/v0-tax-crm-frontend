@@ -27,7 +27,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
 import { listTicketsForClient, getSessionUser } from '@/lib/data/tickets-queries';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { cn } from '@/lib/utils';
 import { CreateTicketForm } from './create-ticket-form';
+import { QueueRealtimeRefresh } from '@/components/realtime/queue-realtime-refresh';
 
 export default async function ClientDashboard() {
   const session = await getSessionUser();
@@ -37,10 +40,11 @@ export default async function ClientDashboard() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
+      <QueueRealtimeRefresh />
       <div className="flex justify-end">
         <Dialog>
           <DialogTrigger asChild>
-            <Button type="button" className="gap-2 bg-primary text-primary-foreground">
+            <Button type="button" variant="default" className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}>
               <Plus className="size-4" />
               Create New Ticket
             </Button>

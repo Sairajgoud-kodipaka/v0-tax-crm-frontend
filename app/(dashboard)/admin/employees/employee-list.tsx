@@ -46,7 +46,7 @@ function EmployeeRow({ employee }: { employee: Employee }) {
             </Button>
           </div>
           {updateState.message ? (
-            <p className={`text-sm ${updateState.ok ? 'text-emerald-600' : 'text-destructive'}`}>{updateState.message}</p>
+            <p className={`text-sm ${updateState.ok ? 'text-primary' : 'text-destructive'}`}>{updateState.message}</p>
           ) : null}
         </form>
       ) : (
@@ -61,7 +61,7 @@ function EmployeeRow({ employee }: { employee: Employee }) {
               <span className="capitalize">{employee.role}</span>
             </div>
             {deleteState.message ? (
-              <p className={`mt-2 text-sm ${deleteState.ok ? 'text-emerald-600' : 'text-destructive'}`}>{deleteState.message}</p>
+              <p className={`mt-2 text-sm ${deleteState.ok ? 'text-primary' : 'text-destructive'}`}>{deleteState.message}</p>
             ) : null}
           </div>
           <div className="flex items-center gap-2">

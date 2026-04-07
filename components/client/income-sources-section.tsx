@@ -124,7 +124,7 @@ export function IncomeSourcesSection() {
         <p>
           <a
             href="#"
-            className="text-sm font-medium text-amber-700 underline decoration-amber-600 underline-offset-2 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+            className="text-sm font-medium text-primary underline decoration-primary/60 underline-offset-2 hover:text-primary/90"
           >
             Download 2024 FBAR/FATCA Organizer
           </a>

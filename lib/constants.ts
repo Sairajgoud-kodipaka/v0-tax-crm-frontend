@@ -1,15 +1,51 @@
 import { TicketStage, TicketStatus, UserRole, TicketPriority } from './types';
 
 export const TICKET_STAGES: Record<TicketStage, { label: string; color: string; description: string }> = {
-  'pending-info': { label: 'Pending Info', color: 'bg-blue-100 text-blue-800', description: 'Waiting for client information' },
-  'under-prep': { label: 'Under Prep', color: 'bg-purple-100 text-purple-800', description: 'Tax return in preparation' },
-  'draft-sent': { label: 'Draft Sent', color: 'bg-yellow-100 text-yellow-800', description: 'Draft sent to client' },
-  'awaiting-approval': { label: 'Awaiting Approval', color: 'bg-orange-100 text-orange-800', description: 'Awaiting client approval' },
-  'payment-received': { label: 'Payment Received', color: 'bg-teal-100 text-teal-800', description: 'Payment received' },
-  '8879-sent': { label: '8879 Sent', color: 'bg-cyan-100 text-cyan-800', description: 'Form 8879 sent to client' },
-  '8879-received': { label: '8879 Received', color: 'bg-green-100 text-green-800', description: 'Form 8879 received and signed' },
-  'filing-completed': { label: 'Filing Completed', color: 'bg-emerald-100 text-emerald-800', description: 'Return filed with IRS' },
-  'closed': { label: 'Closed', color: 'bg-gray-100 text-gray-800', description: 'Case closed' },
+  'pending-info': {
+    label: 'Pending Info',
+    color: 'bg-primary/10 text-primary border border-primary/20',
+    description: 'Waiting for client information',
+  },
+  'under-prep': {
+    label: 'Under Prep',
+    color: 'bg-secondary/15 text-secondary-foreground border border-secondary/30',
+    description: 'Tax return in preparation',
+  },
+  'draft-sent': {
+    label: 'Draft Sent',
+    color: 'bg-muted text-foreground border border-border',
+    description: 'Draft sent to client',
+  },
+  'awaiting-approval': {
+    label: 'Awaiting Approval',
+    color: 'bg-primary/5 text-primary border border-primary/25',
+    description: 'Awaiting client approval',
+  },
+  'payment-received': {
+    label: 'Payment Received',
+    color: 'bg-secondary/10 text-secondary-foreground border border-secondary/25',
+    description: 'Payment received',
+  },
+  '8879-sent': {
+    label: '8879 Sent',
+    color: 'bg-muted text-muted-foreground border border-border',
+    description: 'Form 8879 sent to client',
+  },
+  '8879-received': {
+    label: '8879 Received',
+    color: 'bg-primary/10 text-primary border border-primary/30',
+    description: 'Form 8879 received and signed',
+  },
+  'filing-completed': {
+    label: 'Filing Completed',
+    color: 'bg-chart-5/15 text-foreground border border-chart-5/35',
+    description: 'Return filed with IRS',
+  },
+  'closed': {
+    label: 'Closed',
+    color: 'bg-muted/90 text-muted-foreground border border-border',
+    description: 'Case closed',
+  },
 };
 
 export const TICKET_STATUSES: Record<TicketStatus, { label: string; icon: string }> = {
@@ -21,10 +57,10 @@ export const TICKET_STATUSES: Record<TicketStatus, { label: string; icon: string
 };
 
 export const PRIORITIES: Record<TicketPriority, { label: string; color: string; value: number }> = {
-  'low': { label: 'Low', color: 'text-blue-600', value: 1 },
-  'medium': { label: 'Medium', color: 'text-yellow-600', value: 2 },
-  'high': { label: 'High', color: 'text-orange-600', value: 3 },
-  'critical': { label: 'Critical', color: 'text-red-600', value: 4 },
+  'low': { label: 'Low', color: 'text-muted-foreground', value: 1 },
+  'medium': { label: 'Medium', color: 'text-foreground', value: 2 },
+  'high': { label: 'High', color: 'text-primary', value: 3 },
+  'critical': { label: 'Critical', color: 'text-destructive', value: 4 },
 };
 
 export const FILING_TYPES = [

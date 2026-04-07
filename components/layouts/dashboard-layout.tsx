@@ -1,37 +1,125 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
+import type { LucideIcon } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
+import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import {
+  Archive,
+  BadgeCheck,
+  BarChart3,
+  Briefcase,
+  CheckCircle2,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardList,
+  CreditCard,
+  FileEdit,
+  FileSignature,
+  FileText,
+  Gift,
+  Home,
+  Inbox,
+  LayoutDashboard,
+  ListTodo,
+  LogOut,
+  Mail,
+  MessageSquare,
+  Phone,
+  ScrollText,
+  Send,
+  Settings,
+  UserCheck,
+  UserPlus,
+  Users,
+  Video,
+} from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import type { SessionUser } from '@/lib/session-user';
 import { Button } from '@/components/ui/button';
-import { LogOut, Menu, X } from 'lucide-react';
+import { TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+
+const SIDEBAR_STORAGE_KEY = 'taxcrm-sidebar-expanded';
 
 interface DashboardLayoutProps {
   children: ReactNode;
   user: SessionUser;
   adminSidebarNavigation?: Array<{ href: string; label: string; icon: string }>;
-  /** Employee dashboard: Dashboard, Queues, Messages, etc. */
   employeeSidebarNavigation?: Array<{ href: string; label: string; icon: string }>;
-  /** Client portal: simple help / marketing links (not workflow stages) */
   clientSidebarNavigation?: Array<{ href: string; label: string }>;
-  title: string;
   currentStage?: string;
 }
 
-const STAGES = [
-  { id: 'pending-info', label: 'Pending Info' },
-  { id: 'under-prep', label: 'Under Prep' },
-  { id: 'draft-sent', label: 'Draft Sent' },
-  { id: 'awaiting-approval', label: 'Awaiting Approval' },
-  { id: 'payment-received', label: 'Payment Received' },
-  { id: '8879-sent', label: '8879 Sent' },
-  { id: '8879-received', label: '8879 Received' },
-  { id: 'filing-completed', label: 'Filing Completed' },
-  { id: 'closed', label: 'Closed' },
+const STAGES: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: 'pending-info', label: 'Pending Info', icon: Inbox },
+  { id: 'under-prep', label: 'Under Prep', icon: FileEdit },
+  { id: 'draft-sent', label: 'Draft Sent', icon: Send },
+  { id: 'awaiting-approval', label: 'Awaiting Approval', icon: UserCheck },
+  { id: 'payment-received', label: 'Payment Received', icon: CreditCard },
+  { id: '8879-sent', label: '8879 Sent', icon: FileSignature },
+  { id: '8879-received', label: '8879 Received', icon: CheckCircle2 },
+  { id: 'filing-completed', label: 'Filing Completed', icon: BadgeCheck },
+  { id: 'closed', label: 'Closed', icon: Archive },
 ];
+
+const ADMIN_ROUTE_ICONS: Record<string, LucideIcon> = {
+  grid: LayoutDashboard,
+  list: ListTodo,
+  users: Users,
+  'bar-chart': BarChart3,
+  log: ScrollText,
+  settings: Settings,
+  mail: Mail,
+  briefcase: Briefcase,
+  file: FileText,
+  form: ClipboardList,
+};
+
+const EMPLOYEE_ROUTE_ICONS: Record<string, LucideIcon> = {
+  grid: LayoutDashboard,
+  list: ListTodo,
+  users: UserPlus,
+  'bar-chart': BarChart3,
+  log: ScrollText,
+  settings: Settings,
+  mail: Mail,
+  briefcase: Briefcase,
+  file: FileText,
+  form: ClipboardList,
+};
+
+const CLIENT_ROUTE_ICON: Record<string, LucideIcon> = {
+  '/client': Home,
+  '/client/videos': Video,
+  '/client/cashback': Gift,
+  '/client/feedback': MessageSquare,
+  '/client/contact': Phone,
+  '/client/messages': Mail,
+  '/client/documents': FileText,
+  '/client/tax-organizer': ClipboardList,
+};
+
+function NavTooltip({
+  collapsed,
+  label,
+  children,
+}: {
+  collapsed: boolean;
+  label: string;
+  children: ReactNode;
+}) {
+  if (!collapsed) return <>{children}</>;
+  return (
+    <TooltipPrimitive.Root delayDuration={200}>
+      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+      <TooltipContent side="right" sideOffset={10} className="font-medium">
+        {label}
+      </TooltipContent>
+    </TooltipPrimitive.Root>
+  );
+}
 
 export function DashboardLayout({
   children,
@@ -39,12 +127,32 @@ export function DashboardLayout({
   adminSidebarNavigation = [],
   employeeSidebarNavigation = [],
   clientSidebarNavigation = [],
-  title,
   currentStage,
 }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [expanded, setExpanded] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored === '0') setExpanded(false);
+      if (stored === '1') setExpanded(true);
+    } catch {
+      /* ignore */
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, expanded ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [expanded, hydrated]);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -58,228 +166,245 @@ export function DashboardLayout({
   const isAdminOrEmployee = user.role === 'admin' || user.role === 'employee';
   const isClient = user.role === 'client';
   const baseUrl = isAdmin ? '/admin' : '/employee';
+  const collapsed = !expanded;
+  const sidebarDisplayName =
+    user.name?.trim() || user.email.split('@')[0] || 'User';
+  const sidebarInitial = sidebarDisplayName.charAt(0).toUpperCase() || 'U';
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Primary Sidebar - Workflow Stages for Admin/Employee; utility nav for Client */}
-      <aside
-        className={cn(
-          sidebarOpen ? 'w-64' : 'w-20',
-          'transition-all duration-300 flex flex-col overflow-y-auto border-r',
-          isClient
-            ? 'bg-zinc-950 text-zinc-100 border-zinc-800'
-            : 'bg-sidebar text-sidebar-foreground border-sidebar-border',
-        )}
-      >
-        {/* Header */}
-        <div
+    <TooltipProvider delayDuration={200}>
+      <div className="flex h-screen bg-background">
+        <aside
           className={cn(
-            'p-6 border-b flex-shrink-0',
-            isClient ? 'border-zinc-800' : 'border-sidebar-border',
+            'flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
+            'transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+            expanded ? 'w-[260px]' : 'w-[72px]',
           )}
         >
-          <h1 className={cn('text-xl font-bold', isClient ? 'text-zinc-50' : 'text-sidebar-primary')}>
-            TaxCRM
-          </h1>
-        </div>
-
-        {/* Workflow Stages (Admin & Employee Only) */}
-        {isAdminOrEmployee && (
-          <nav className="flex-1 px-4 py-4">
-            <div className="mb-4">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2">
-                {sidebarOpen ? 'Workflow Stages' : ''}
-              </h3>
-            </div>
-            <div className="space-y-1">
-              {STAGES.map((stage) => {
-                const isActive = currentStage === stage.id;
-                return (
-                  <Link
-                    key={stage.id}
-                    href={`${baseUrl}/queues?stage=${stage.id}`}
-                    className={cn(
-                      'flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <span className="w-4 h-4 flex-shrink-0" />
-                    {sidebarOpen ? <span>{stage.label}</span> : null}
-                  </Link>
-                );
-              })}
-            </div>
-          </nav>
-        )}
-
-        {/* Client utility navigation */}
-        {isClient && clientSidebarNavigation.length > 0 && (
-          <nav className="flex-1 px-3 py-6">
-            <ul className="space-y-1">
-              {clientSidebarNavigation.map((item) => {
-                const isActive =
-                  item.href === '/client'
-                    ? pathname === '/client'
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        'block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-amber-400 text-zinc-950'
-                          : 'text-zinc-300 hover:bg-zinc-800 hover:text-white',
-                      )}
-                    >
-                      {sidebarOpen ? item.label : '•'}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        )}
-
-        {/* Admin navigation */}
-        {isAdmin && (
-          <nav className="border-t border-sidebar-border px-4 py-4 space-y-2 flex-shrink-0">
-            {adminSidebarNavigation.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm font-medium',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                    {item.icon === 'grid' && '📊'}
-                    {item.icon === 'list' && '📋'}
-                    {item.icon === 'users' && '👥'}
-                    {item.icon === 'bar-chart' && '📈'}
-                    {item.icon === 'log' && '📝'}
-                    {item.icon === 'settings' && '⚙️'}
-                    {item.icon === 'mail' && '✉️'}
-                    {item.icon === 'briefcase' && '💼'}
-                    {item.icon === 'file' && '📄'}
-                    {item.icon === 'form' && '📋'}
-                  </span>
-                  {sidebarOpen ? <span>{item.label}</span> : null}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        {/* Employee navigation (Dashboard, Messages) — queues are under Workflow Stages */}
-        {isEmployee && employeeSidebarNavigation.length > 0 && (
-          <nav className="border-t border-sidebar-border px-4 py-4 space-y-2 flex-shrink-0">
-            {employeeSidebarNavigation.map((item) => {
-              const isActive =
-                item.href === '/employee'
-                  ? pathname === '/employee' || pathname === '/employee/'
-                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm font-medium',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                >
-                  <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                    {item.icon === 'grid' && '📊'}
-                    {item.icon === 'list' && '📋'}
-                    {item.icon === 'users' && '👥'}
-                    {item.icon === 'bar-chart' && '📈'}
-                    {item.icon === 'log' && '📝'}
-                    {item.icon === 'settings' && '⚙️'}
-                    {item.icon === 'mail' && '✉️'}
-                    {item.icon === 'briefcase' && '💼'}
-                    {item.icon === 'file' && '📄'}
-                    {item.icon === 'form' && '📋'}
-                  </span>
-                  {sidebarOpen ? <span>{item.label}</span> : null}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-
-        {/* Footer with Logout */}
-        <div
-          className={cn(
-            'border-t p-4 space-y-2 flex-shrink-0',
-            isClient ? 'border-zinc-800' : 'border-sidebar-border',
-          )}
-        >
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+          {/* Brand + collapse */}
+          <div
             className={cn(
-              'w-full flex items-center justify-center px-4 py-2 rounded-lg transition-colors',
-              isClient
-                ? 'hover:bg-zinc-800 text-zinc-300'
-                : 'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              'flex shrink-0 items-center gap-3 border-b border-sidebar-border py-3',
+              expanded ? 'px-4' : 'flex-col gap-3 px-2 pt-4',
             )}
           >
-            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className={cn(
-              'w-full justify-start gap-2',
-              isClient
-                ? 'border-zinc-700 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 hover:text-white'
-                : 'text-destructive hover:text-destructive',
-            )}
-          >
-            <LogOut className="w-4 h-4" />
-            {sidebarOpen ? (isClient ? 'Sign out' : 'Logout') : null}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between flex-shrink-0">
-          {title ? (
-            <h2 className="text-2xl font-bold text-foreground">{title}</h2>
-          ) : (
-            <span className="sr-only">TaxCRM</span>
-          )}
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-foreground">{user.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-1 ring-black/5">
+                <span className="text-sm font-bold tracking-tight">{sidebarInitial}</span>
+              </div>
+              {expanded && (
+                <span className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+                  {sidebarDisplayName}
+                </span>
+              )}
             </div>
-            {user.avatar && (
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-10 h-10 rounded-full"
-              />
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              aria-expanded={expanded}
+              aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              className={cn(
+                'flex size-9 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-background/80 text-muted-foreground shadow-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                expanded ? '' : 'mx-auto',
+              )}
+            >
+              {expanded ? (
+                <ChevronsLeft className="size-[18px] stroke-[1.75]" />
+              ) : (
+                <ChevronsRight className="size-[18px] stroke-[1.75]" />
+              )}
+            </button>
+          </div>
+
+          <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+            {/* Workflow stages */}
+            {isAdminOrEmployee && (
+              <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
+                {expanded && (
+                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Workflow
+                  </p>
+                )}
+                <ul className="space-y-0.5">
+                  {STAGES.map((stage) => {
+                    const isActive = currentStage === stage.id;
+                    const Icon = stage.icon;
+                    const href = `${baseUrl}/queues?stage=${stage.id}`;
+                    const link = (
+                      <Link
+                        href={href}
+                        className={cn(
+                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                          expanded ? 'px-3' : 'justify-center px-0',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                        {expanded && <span className="truncate">{stage.label}</span>}
+                      </Link>
+                    );
+                    return (
+                      <li key={stage.id}>
+                        <NavTooltip collapsed={collapsed} label={stage.label}>
+                          {link}
+                        </NavTooltip>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            )}
+
+            {/* Client portal */}
+            {isClient && clientSidebarNavigation.length > 0 && (
+              <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
+                {expanded && (
+                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Portal
+                  </p>
+                )}
+                <ul className="space-y-0.5">
+                  {clientSidebarNavigation.map((item) => {
+                    const isActive =
+                      item.href === '/client'
+                        ? pathname === '/client'
+                        : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const Icon = CLIENT_ROUTE_ICON[item.href] ?? Home;
+                    const link = (
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                          expanded ? 'px-3' : 'justify-center px-0',
+                          isActive
+                            ? 'bg-[#E0E1DD] text-[#0D1B2A] shadow-sm'
+                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                        {expanded && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    );
+                    return (
+                      <li key={item.href}>
+                        <NavTooltip collapsed={collapsed} label={item.label}>
+                          {link}
+                        </NavTooltip>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            )}
+
+            {/* Admin workspace */}
+            {isAdmin && adminSidebarNavigation.length > 0 && (
+              <nav className={cn('border-t border-sidebar-border py-3', expanded ? 'px-3' : 'px-2')}>
+                {expanded && (
+                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Workspace
+                  </p>
+                )}
+                <ul className="space-y-0.5">
+                  {adminSidebarNavigation.map((item) => {
+                    const isActive = pathname.startsWith(item.href);
+                    const Icon = ADMIN_ROUTE_ICONS[item.icon] ?? LayoutDashboard;
+                    const link = (
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                          expanded ? 'px-3' : 'justify-center px-0',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                        {expanded && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    );
+                    return (
+                      <li key={item.href}>
+                        <NavTooltip collapsed={collapsed} label={item.label}>
+                          {link}
+                        </NavTooltip>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            )}
+
+            {/* Employee workspace */}
+            {isEmployee && employeeSidebarNavigation.length > 0 && (
+              <nav className={cn('border-t border-sidebar-border py-3', expanded ? 'px-3' : 'px-2')}>
+                {expanded && (
+                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Workspace
+                  </p>
+                )}
+                <ul className="space-y-0.5">
+                  {employeeSidebarNavigation.map((item) => {
+                    const isActive =
+                      item.href === '/employee'
+                        ? pathname === '/employee' || pathname === '/employee/'
+                        : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const Icon = EMPLOYEE_ROUTE_ICONS[item.icon] ?? LayoutDashboard;
+                    const link = (
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                          expanded ? 'px-3' : 'justify-center px-0',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                        {expanded && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    );
+                    return (
+                      <li key={item.href}>
+                        <NavTooltip collapsed={collapsed} label={item.label}>
+                          {link}
+                        </NavTooltip>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
             )}
           </div>
-        </header>
 
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-6">
-          {children}
-        </main>
+          {/* Footer */}
+          <div className="shrink-0 space-y-2 border-t border-sidebar-border p-3">
+            <NavTooltip collapsed={collapsed} label={isClient ? 'Sign out' : 'Logout'}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLogout}
+                className={cn(
+                  'h-10 w-full justify-start gap-2 rounded-xl border-sidebar-border bg-background/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent',
+                  collapsed && 'justify-center px-0',
+                  !isClient && 'text-destructive hover:bg-destructive/10 hover:text-destructive',
+                )}
+              >
+                <LogOut className="size-[18px] shrink-0 stroke-[1.75]" />
+                {expanded && <span>{isClient ? 'Sign out' : 'Logout'}</span>}
+              </Button>
+            </NavTooltip>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <main className="min-h-0 flex-1 overflow-auto p-6 text-foreground">{children}</main>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

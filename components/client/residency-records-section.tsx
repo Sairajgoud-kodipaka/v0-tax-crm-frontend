@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -125,7 +127,8 @@ export function ResidencyRecordsSection({
         <Button
           type="button"
           onClick={() => setOpen(true)}
-          className="gap-2 bg-amber-400 text-zinc-900 hover:bg-amber-500"
+          variant="default"
+          className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}
         >
           <Plus className="size-4" />
           {addButtonLabel}
@@ -135,7 +138,7 @@ export function ResidencyRecordsSection({
       <div className="overflow-hidden rounded-lg border border-border">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-border bg-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-800">
+            <TableRow className="border-b border-border bg-muted/60 hover:bg-muted/60">
               <TableHead className="font-semibold text-foreground">Country</TableHead>
               <TableHead className="font-semibold text-foreground">State</TableHead>
               <TableHead className="font-semibold text-foreground">From Date</TableHead>
@@ -183,7 +186,7 @@ export function ResidencyRecordsSection({
       </div>
 
       <div className="flex justify-end">
-        <Button type="button" variant="outline" className="gap-2 border-amber-400 text-amber-900 hover:bg-amber-50">
+        <Button type="button" variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
           Next Page
           <ChevronRight className="size-4" />
         </Button>
@@ -268,7 +271,7 @@ export function ResidencyRecordsSection({
               </div>
 
               <div className="flex justify-center border-t border-border pt-4">
-                <Button type="submit" className="min-w-[120px] bg-amber-400 text-zinc-900 hover:bg-amber-500">
+                <Button type="submit" variant="default" className={cn('min-w-[120px]', ticketCaseBlackCtaButtonClassName)}>
                   Save
                 </Button>
               </div>

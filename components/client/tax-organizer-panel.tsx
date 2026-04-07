@@ -31,6 +31,7 @@ import {
   TAXPAYER_ORGANIZER_FORM_ID,
   type TaxpayerOrganizerSnapshot,
 } from '@/lib/tax-organizer-taxpayer';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
 
 function Req({ children }: { children: React.ReactNode }) {
@@ -367,7 +368,7 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
   return (
     <div className="flex flex-col border-t border-border bg-muted/30">
       {/* Secondary tabs — light bar */}
-      <div className="flex flex-wrap border-b border-border bg-zinc-200/90 dark:bg-zinc-800/80">
+      <div className="flex flex-wrap border-b border-border bg-muted/70">
         {ORGANIZER_SECONDARY.map((sec) => {
           const active = secondary === sec.id;
           return (
@@ -381,8 +382,8 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
               className={cn(
                 'border-b-2 border-transparent px-5 py-2.5 text-sm font-medium transition-colors',
                 active
-                  ? 'border-b-amber-500 bg-background text-amber-600 shadow-sm dark:bg-zinc-950 dark:text-amber-400'
-                  : 'text-zinc-600 hover:text-foreground dark:text-zinc-400',
+                  ? 'border-b-primary bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {sec.label}
@@ -403,7 +404,7 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
               className={cn(
                 'text-sm font-medium transition-colors',
                 active
-                  ? 'text-amber-600 underline decoration-amber-500 decoration-2 underline-offset-4 dark:text-amber-400'
+                  ? 'text-foreground underline decoration-primary decoration-2 underline-offset-4'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -414,7 +415,7 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
       </div>
 
       {/* Form content */}
-      <div className="bg-zinc-50/80 p-4 sm:p-6 dark:bg-zinc-950/40">
+      <div className="bg-muted/30 p-4 sm:p-6">
         <div className="mx-auto max-w-5xl rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
           <OrganizerFormBody
             secondary={secondary}
@@ -424,7 +425,8 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
             <Button
               type="button"
-              className="bg-amber-400 text-zinc-900 hover:bg-amber-500"
+              variant="default"
+              className={ticketCaseBlackCtaButtonClassName}
               disabled={!ticketId || pending}
               onClick={() => {
                 if (!ticketId) return;
@@ -448,7 +450,7 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
             >
               {pending ? 'Saving…' : 'Save'}
             </Button>
-            <Button type="button" className="bg-amber-500 text-amber-950 hover:bg-amber-400">
+            <Button type="button" variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
               Submit
             </Button>
           </div>

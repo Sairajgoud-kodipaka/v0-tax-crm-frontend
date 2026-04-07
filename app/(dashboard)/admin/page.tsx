@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { TICKET_STAGES, STAGE_NAVIGATION } from '@/lib/constants';
 import { getAdminDashboardData } from '@/lib/data/admin-stats';
 import { AdminDashboardCharts } from '@/app/(dashboard)/admin/admin-dashboard-charts';
+import { QueueRealtimeRefresh } from '@/components/realtime/queue-realtime-refresh';
 
 export default async function AdminDashboard() {
   const stats = await getAdminDashboardData();
@@ -14,6 +15,7 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      <QueueRealtimeRefresh />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">

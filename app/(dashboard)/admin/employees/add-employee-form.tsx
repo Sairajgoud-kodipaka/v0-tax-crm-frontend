@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createEmployeeAction } from '@/app/actions/admin-employees';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 
 const createEmployeeInitialState = { ok: false as const, message: '' };
 
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" className="bg-primary text-primary-foreground" disabled={pending}>
+    <Button type="submit" variant="default" className={ticketCaseBlackCtaButtonClassName} disabled={pending}>
       {pending ? 'Adding employee...' : 'Add Employee'}
     </Button>
   );
@@ -38,7 +39,7 @@ export function AddEmployeeForm() {
       <div className="md:col-span-3 space-y-2">
         <SubmitButton />
         {state.message ? (
-          <p className={`text-sm ${state.ok ? 'text-emerald-600' : 'text-destructive'}`}>{state.message}</p>
+          <p className={`text-sm ${state.ok ? 'text-primary' : 'text-destructive'}`}>{state.message}</p>
         ) : null}
       </div>
     </form>

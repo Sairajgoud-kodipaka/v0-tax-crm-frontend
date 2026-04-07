@@ -4,6 +4,7 @@ import { TICKET_STAGES } from '@/lib/constants';
 import { getSessionUser } from '@/lib/data/tickets-queries';
 import { getEmployeeDashboardData } from '@/lib/data/employee-stats';
 import { EmployeeBarChart } from '@/app/(dashboard)/employee/employee-bar-chart';
+import { QueueRealtimeRefresh } from '@/components/realtime/queue-realtime-refresh';
 
 export default async function EmployeeDashboard() {
   const session = await getSessionUser();
@@ -13,6 +14,7 @@ export default async function EmployeeDashboard() {
 
   return (
     <div className="space-y-6">
+      <QueueRealtimeRefresh />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">

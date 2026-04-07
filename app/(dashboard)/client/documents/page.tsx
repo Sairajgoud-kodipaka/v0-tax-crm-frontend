@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Download, Upload, Filter } from 'lucide-react';
 import { getSessionUser, getServerSupabase } from '@/lib/data/tickets-queries';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { cn } from '@/lib/utils';
 import { clientUploadDocumentFormAction } from '@/app/actions/forms';
 
 type TicketRow = {
@@ -77,7 +79,7 @@ export default async function ClientDocumentsPage() {
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <p className="text-muted-foreground">No documents uploaded yet</p>
-              <Button asChild className="mt-4 bg-primary text-primary-foreground gap-2">
+              <Button asChild variant="default" className={cn('mt-4 gap-2', ticketCaseBlackCtaButtonClassName)}>
                 <Link href="/client">Go to your cases</Link>
               </Button>
             </div>
@@ -164,7 +166,7 @@ export default async function ClientDocumentsPage() {
                 name="file"
                 className="block w-full rounded-md border border-border px-3 py-2 text-sm"
               />
-              <Button type="submit" className="gap-2 bg-primary text-primary-foreground">
+              <Button type="submit" variant="default" className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}>
                 <Upload className="h-4 w-4" />
                 Upload
               </Button>

@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Save } from 'lucide-react';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -36,7 +38,7 @@ export default function SettingsPage() {
           <p className="text-muted-foreground mt-1">Manage your company and system settings</p>
         </div>
         {unsavedChanges && (
-          <Button className="bg-primary text-primary-foreground gap-2" onClick={handleSave}>
+          <Button variant="default" className={cn('gap-2', ticketCaseBlackCtaButtonClassName)} onClick={handleSave}>
             <Save className="w-4 h-4" />
             Save Changes
           </Button>
@@ -145,11 +147,12 @@ export default function SettingsPage() {
                       handleChange('workingDays', [...settings.workingDays, dayNum]);
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={cn(
+                    'rounded-lg px-4 py-2 font-medium transition-colors',
                     settings.workingDays.includes(index + 1 === 7 ? 0 : index + 1)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted'
-                  }`}
+                      ? 'bg-black text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-muted',
+                  )}
                 >
                   {day}
                 </button>
