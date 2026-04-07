@@ -14,6 +14,29 @@ export async function uploadTicketDocumentAction(
   const supabase = createClient(await cookies());
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const role = profile?.role;
+
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('id, client_id, assigned_employee_id')
+    .eq('id', ticketId)
+    .maybeSingle();
+  if (!ticket) throw new Error('Ticket not found');
+
+  if (category === 'client_upload') {
+    if (role === 'client') {
+      if (ticket.client_id !== user.id) throw new Error('Forbidden');
+    } else if (role !== 'admin' && role !== 'employee') {
+      throw new Error('Forbidden');
+    }
+  } else if (category === 'draft' || category === 'final' || category === 'other') {
+    if (role === 'employee') {
+      if (ticket.assigned_employee_id !== user.id) throw new Error('Forbidden');
+    } else if (role !== 'admin') {
+      throw new Error('Forbidden');
+    }
+  }
 
   const file = formData.get('file');
   if (!file || !(file instanceof Blob)) {

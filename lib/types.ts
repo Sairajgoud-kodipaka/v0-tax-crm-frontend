@@ -45,6 +45,7 @@ export interface Ticket {
   /** Display reference e.g. 22497 in client ticket tables */
   shortCode?: string;
   drafts?: TicketDraftFile[];
+  invoiceFiles?: TicketDraftFile[];
   invoices?: TicketInvoiceRow[];
   finalDocuments?: TicketFinalDocument[];
   history?: TicketHistoryEntry[];

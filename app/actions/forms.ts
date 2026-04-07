@@ -52,3 +52,21 @@ export async function clientDeleteDocumentFormAction(formData: FormData) {
   if (!documentId) throw new Error('Invalid');
   await deleteTicketDocumentAction(documentId);
 }
+
+export async function staffUploadDraftFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  if (!ticketId) throw new Error('Invalid');
+  await uploadTicketDocumentAction(ticketId, formData, 'draft');
+}
+
+export async function staffUploadInvoiceFileFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  if (!ticketId) throw new Error('Invalid');
+  await uploadTicketDocumentAction(ticketId, formData, 'other');
+}
+
+export async function staffUploadFinalPackageFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  if (!ticketId) throw new Error('Invalid');
+  await uploadTicketDocumentAction(ticketId, formData, 'final');
+}

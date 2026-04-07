@@ -30,6 +30,11 @@ export function hydrateTicket(raw: Record<string, unknown>): Ticket {
       sharedAt: new Date(d.sharedAt as unknown as string),
       url: d.url,
     })),
+    invoiceFiles: (t.invoiceFiles as TicketDraftFile[] | undefined)?.map((d) => ({
+      ...d,
+      sharedAt: new Date(d.sharedAt as unknown as string),
+      url: d.url,
+    })),
     invoices: (t.invoices as TicketInvoiceRow[] | undefined)?.map((inv) => ({
       ...inv,
       dueDate: inv.dueDate ? new Date(inv.dueDate as unknown as string) : undefined,

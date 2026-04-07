@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, Filter } from 'lucide-react';
+import { Download, Filter } from 'lucide-react';
 import { getSessionUser, getServerSupabase } from '@/lib/data/tickets-queries';
 import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
-import { clientUploadDocumentFormAction } from '@/app/actions/forms';
 
 type TicketRow = {
   id: string;
@@ -154,23 +153,16 @@ export default async function ClientDocumentsPage() {
       {clientTickets.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Quick Upload to Most Recent Case</CardTitle>
-            <CardDescription>For convenience, this uploads as a client document to your latest case.</CardDescription>
+            <CardTitle>Upload Documents</CardTitle>
+            <CardDescription>
+              To keep uploads one-step and consistent, upload documents directly inside each case under
+              <span className="font-medium text-foreground"> My Documents</span>.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={clientUploadDocumentFormAction} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <input type="hidden" name="ticketId" value={clientTickets[0].id} />
-              <input
-                required
-                type="file"
-                name="file"
-                className="block w-full rounded-md border border-border px-3 py-2 text-sm"
-              />
-              <Button type="submit" variant="default" className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}>
-                <Upload className="h-4 w-4" />
-                Upload
-              </Button>
-            </form>
+            <Button asChild variant="default" className={ticketCaseBlackCtaButtonClassName}>
+              <Link href="/client">Open Cases</Link>
+            </Button>
           </CardContent>
         </Card>
       )}

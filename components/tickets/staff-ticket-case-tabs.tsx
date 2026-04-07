@@ -1,13 +1,18 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
-import { TICKET_STAGES } from '@/lib/constants';
 import { clientStatusPresentation, displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
-import { sendStaffMessageFormAction } from '@/app/actions/forms';
+import {
+  sendStaffMessageFormAction,
+  staffUploadDraftFormAction,
+  staffUploadInvoiceFileFormAction,
+  staffUploadFinalPackageFormAction,
+} from '@/app/actions/forms';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +37,7 @@ import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import type { UserRole } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { Upload } from 'lucide-react';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -70,21 +76,35 @@ export function StaffTicketCaseTabs({
     ['final', 'Final Documents'],
   ] as const;
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
+  const draftUploadFormRef = useRef<HTMLFormElement | null>(null);
+  const draftUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const invoiceUploadFormRef = useRef<HTMLFormElement | null>(null);
+  const invoiceUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const finalUploadFormRef = useRef<HTMLFormElement | null>(null);
+  const finalUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [draftUploading, setDraftUploading] = useState(false);
+  const [invoiceUploading, setInvoiceUploading] = useState(false);
+  const [finalUploading, setFinalUploading] = useState(false);
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const ref = displayTicketRef(ticket);
   const status = clientStatusPresentation(ticket);
   const messages = useTicketMessagesRealtime(ticket.id, ticket.messages ?? [], { hideInternal: false });
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
+  const activeTabLabel =
+    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
+  const pathname = usePathname();
+  const currentPageLabel = `${pathname} / ${activeTabLabel}`;
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
-  const { onlineOthers, typingHint, notifyTyping } = useTicketPresenceTyping(
+  const { onlineOthers, typingHint, clientCurrentTab, clientOnline, notifyTyping } = useTicketPresenceTyping(
     ticket.id,
     viewerUserId,
     viewerName,
+    viewerRole,
+    currentPageLabel,
+    ticket.clientId,
   );
   const seenLabel = readReceiptLabel(messages, viewerUserId, viewerIsStaff, reads);
   const primaryTrigger = ticketCasePrimaryTabTriggerClassName();
-  const activeTabLabel =
-    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
   const openLinkOrNotify = (url: string | undefined, emptyMessage: string) => {
     if (!url) {
       toast({ title: emptyMessage });
@@ -92,6 +112,15 @@ export function StaffTicketCaseTabs({
     }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+  useEffect(() => {
+    if (draftUploading) setDraftUploading(false);
+  }, [ticket.drafts?.length, draftUploading]);
+  useEffect(() => {
+    if (invoiceUploading) setInvoiceUploading(false);
+  }, [ticket.invoiceFiles?.length, invoiceUploading]);
+  useEffect(() => {
+    if (finalUploading) setFinalUploading(false);
+  }, [ticket.finalDocuments?.length, finalUploading]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -106,14 +135,14 @@ export function StaffTicketCaseTabs({
             {ticket.clientEmail ? ` · ${ticket.clientEmail}` : ''}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] font-medium text-foreground/80">
-              {activeTabLabel}
-            </span>
+        <div className="flex flex-col items-end gap-1 text-right">
+          <p className="text-[11px] font-medium leading-tight text-muted-foreground">
+            {clientOnline && clientCurrentTab ? `Client current page: ${clientCurrentTab}` : 'Client is offline'}
+          </p>
+          <div>
             <span
               className={cn(
-                'inline-flex w-fit items-center rounded-md px-3 py-1.5 text-xs font-semibold',
+                'inline-flex w-fit items-center rounded-full px-3 py-1.5 text-xs font-semibold',
                 status.className,
               )}
             >
@@ -188,31 +217,6 @@ export function StaffTicketCaseTabs({
                 )}
               </div>
             </ScrollArea>
-
-            {(ticket.history ?? []).length > 0 && (
-              <div className="border-t border-border px-4 py-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Stage history
-                </p>
-                <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
-                  {(ticket.history ?? []).map((entry) => (
-                    <div key={entry.id} className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium">{entry.actorName}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <Badge variant="outline" className="text-[10px]">
-                          {entry.fromStage ? TICKET_STAGES[entry.fromStage].label : 'Created'}
-                        </Badge>
-                        <span className="text-muted-foreground">to</span>
-                        <Badge className="text-[10px]">{TICKET_STAGES[entry.toStage].label}</Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{entry.createdAt.toLocaleString()}</p>
-                      {entry.note && <p className="mt-1 text-xs">{entry.note}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div className="border-t border-border p-4">
               <form action={sendStaffMessageFormAction} className="space-y-2">
@@ -344,6 +348,37 @@ export function StaffTicketCaseTabs({
                 </TableBody>
               </Table>
             </div>
+            <form
+              ref={draftUploadFormRef}
+              action={staffUploadDraftFormAction}
+              encType="multipart/form-data"
+              className="space-y-2"
+            >
+              <input type="hidden" name="ticketId" value={ticket.id} />
+              <input
+                ref={draftUploadInputRef}
+                type="file"
+                name="file"
+                required
+                className="hidden"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0];
+                  if (!selected || !draftUploadFormRef.current) return;
+                  setDraftUploading(true);
+                  draftUploadFormRef.current.requestSubmit();
+                }}
+              />
+              <Button
+                type="button"
+                variant="default"
+                className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}
+                onClick={() => draftUploadInputRef.current?.click()}
+                disabled={draftUploading}
+              >
+                <Upload className="size-4" />
+                {draftUploading ? 'Uploading draft...' : 'Choose Draft File'}
+              </Button>
+            </form>
           </div>
         </TabsContent>
 
@@ -409,6 +444,79 @@ export function StaffTicketCaseTabs({
                 ))}
               </div>
             </div>
+            <div className="rounded-lg border border-border">
+              <div className="border-b border-border px-4 py-3 text-sm font-medium">Uploaded Invoice Files</div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>File</TableHead>
+                    <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
+                    <TableHead className="w-[120px] text-right"> </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(!ticket.invoiceFiles || ticket.invoiceFiles.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-sm text-muted-foreground">
+                        No invoice files uploaded yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {ticket.invoiceFiles?.map((f) => (
+                    <TableRow key={f.id}>
+                      <TableCell className="font-medium">{f.name}</TableCell>
+                      <TableCell className="hidden text-muted-foreground sm:table-cell">
+                        {f.sharedAt.toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {f.url ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={f.url} target="_blank" rel="noreferrer">
+                              Download
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" type="button" onClick={() => openLinkOrNotify(f.url, 'Invoice file not available yet.')}>
+                            Download
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <form
+              ref={invoiceUploadFormRef}
+              action={staffUploadInvoiceFileFormAction}
+              encType="multipart/form-data"
+              className="space-y-2"
+            >
+              <input type="hidden" name="ticketId" value={ticket.id} />
+              <input
+                ref={invoiceUploadInputRef}
+                type="file"
+                name="file"
+                required
+                className="hidden"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0];
+                  if (!selected || !invoiceUploadFormRef.current) return;
+                  setInvoiceUploading(true);
+                  invoiceUploadFormRef.current.requestSubmit();
+                }}
+              />
+              <Button
+                type="button"
+                variant="default"
+                className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}
+                onClick={() => invoiceUploadInputRef.current?.click()}
+                disabled={invoiceUploading}
+              >
+                <Upload className="size-4" />
+                {invoiceUploading ? 'Uploading invoice...' : 'Choose Invoice File'}
+              </Button>
+            </form>
           </div>
         </TabsContent>
 
@@ -467,6 +575,37 @@ export function StaffTicketCaseTabs({
                 </TableBody>
               </Table>
             </div>
+            <form
+              ref={finalUploadFormRef}
+              action={staffUploadFinalPackageFormAction}
+              encType="multipart/form-data"
+              className="space-y-2"
+            >
+              <input type="hidden" name="ticketId" value={ticket.id} />
+              <input
+                ref={finalUploadInputRef}
+                type="file"
+                name="file"
+                required
+                className="hidden"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0];
+                  if (!selected || !finalUploadFormRef.current) return;
+                  setFinalUploading(true);
+                  finalUploadFormRef.current.requestSubmit();
+                }}
+              />
+              <Button
+                type="button"
+                variant="default"
+                className={cn('gap-2', ticketCaseBlackCtaButtonClassName)}
+                onClick={() => finalUploadInputRef.current?.click()}
+                disabled={finalUploading}
+              >
+                <Upload className="size-4" />
+                {finalUploading ? 'Uploading final package...' : 'Choose Final Package File'}
+              </Button>
+            </form>
           </div>
         </TabsContent>
       </Tabs>

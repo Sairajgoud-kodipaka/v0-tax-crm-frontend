@@ -40,6 +40,7 @@ export function mapTicketRow(
     documents: Document[];
     messages: Message[];
     drafts?: TicketDraftFile[];
+    invoiceFiles?: TicketDraftFile[];
     invoices?: TicketInvoiceRow[];
     finalDocuments?: TicketFinalDocument[];
     history?: TicketHistoryEntry[];
@@ -63,6 +64,7 @@ export function mapTicketRow(
     messages: extras.messages,
     shortCode: String(row.public_ref),
     drafts: extras.drafts,
+    invoiceFiles: extras.invoiceFiles,
     invoices: extras.invoices,
     finalDocuments: extras.finalDocuments,
     history: extras.history,

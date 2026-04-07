@@ -278,6 +278,17 @@ export async function getTicketDetailBundle(
       })),
     )) ?? [];
 
+  const invoiceFileRows = docRows.filter((d) => d.category === 'other');
+  const invoiceFiles =
+    (await Promise.all(
+      invoiceFileRows.map(async (d) => ({
+        id: d.id,
+        name: d.original_filename ?? 'Invoice file',
+        sharedAt: new Date(d.created_at),
+        url: await signedUrlForPath(supabase, d.storage_path),
+      })),
+    )) ?? [];
+
   const finalRows = docRows.filter((d) => d.category === 'final');
   const finalDocuments =
     (await Promise.all(
@@ -316,6 +327,7 @@ export async function getTicketDetailBundle(
     documents: staffDocs,
     messages,
     drafts,
+    invoiceFiles,
     invoices,
     finalDocuments,
     history,

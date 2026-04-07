@@ -5,6 +5,7 @@ import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
@@ -75,6 +76,10 @@ export function ClientCaseTabs({
     ['final', 'Final Documents'],
   ] as const;
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
+  const activeTabLabel =
+    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
+  const pathname = usePathname();
+  const currentPageLabel = `${pathname} / ${activeTabLabel}`;
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const { lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,
@@ -95,11 +100,11 @@ export function ClientCaseTabs({
     ticket.id,
     viewerUserId,
     viewerName,
+    viewerRole,
+    currentPageLabel,
   );
   const seenLabel = readReceiptLabel(messages, viewerUserId, viewerIsStaff, reads);
   const primaryTrigger = ticketCasePrimaryTabTriggerClassName();
-  const activeTabLabel =
-    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
   const uploadFormRef = useRef<HTMLFormElement | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
@@ -135,8 +140,8 @@ export function ClientCaseTabs({
         </h1>
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center">
-            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] font-medium text-foreground/80">
-              {activeTabLabel}
+            <span className="inline-flex items-center rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+              Viewing: {currentPageLabel}
             </span>
           </div>
           <span className="text-[11px] leading-tight text-muted-foreground tabular-nums">
@@ -482,6 +487,48 @@ export function ClientCaseTabs({
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="rounded-lg border border-border">
+              <div className="border-b border-border px-4 py-3 text-sm font-medium">Invoice Files</div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>File</TableHead>
+                    <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
+                    <TableHead className="w-[120px] text-right"> </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(!ticket.invoiceFiles || ticket.invoiceFiles.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-sm text-muted-foreground">
+                        No invoice files shared yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {ticket.invoiceFiles?.map((f) => (
+                    <TableRow key={f.id}>
+                      <TableCell className="font-medium">{f.name}</TableCell>
+                      <TableCell className="hidden text-muted-foreground sm:table-cell">
+                        {f.sharedAt.toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {f.url ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={f.url} target="_blank" rel="noreferrer">
+                              Download
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" type="button" onClick={() => openLinkOrNotify(f.url, 'Invoice file not available yet.')}>
+                            Download
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
             <p className="text-sm text-muted-foreground">
               Questions about billing? Use Messages to contact your team.

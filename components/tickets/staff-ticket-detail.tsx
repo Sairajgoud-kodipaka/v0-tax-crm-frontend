@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { TICKET_STAGES, STAGE_NAVIGATION } from '@/lib/constants';
 import type { Ticket, UserRole } from '@/lib/types';
@@ -47,6 +47,7 @@ export function StaffTicketDetail({
   viewerName: string;
   viewerRole: UserRole;
 }) {
+  const [stageHistoryOpen, setStageHistoryOpen] = useState(false);
   const { stage: liveStage, lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,
     ticket.stage,
@@ -80,22 +81,22 @@ export function StaffTicketDetail({
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Update stage</CardTitle>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Update Stage</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form action={updateStageFormAction} className="flex flex-wrap items-end gap-3">
+        <CardContent className="pt-0">
+          <form action={updateStageFormAction} className="flex flex-wrap items-end gap-1.5">
             <input type="hidden" name="ticketId" value={ticket.id} />
-            <div className="space-y-1">
-              <label htmlFor="toStage" className="text-sm text-muted-foreground">
-                New stage
+            <div className="space-y-1 min-w-[140px]">
+              <label htmlFor="toStage" className="text-[10px] text-muted-foreground">
+                Stage
               </label>
               <select
                 id="toStage"
                 name="toStage"
                 key={liveStage}
                 defaultValue={liveStage}
-                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                className="flex h-7 rounded-md border border-input bg-background px-2 py-0 text-xs"
               >
                 {STAGE_NAVIGATION.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -104,92 +105,23 @@ export function StaffTicketDetail({
                 ))}
               </select>
             </div>
-            <div className="min-w-[200px] flex-1 space-y-1">
-              <label htmlFor="note" className="text-sm text-muted-foreground">
-                Note (optional)
+            <div className="min-w-[180px] flex-1 space-y-1">
+              <label htmlFor="note" className="text-[10px] text-muted-foreground">
+                Note
               </label>
               <input
                 id="note"
                 name="note"
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                className="flex h-7 w-full rounded-md border border-input bg-background px-2 py-0 text-xs"
                 placeholder="Reason for change"
               />
             </div>
-            <Button type="submit" variant="default" className={ticketCaseBlackCtaButtonClassName}>
+            <Button type="submit" size="sm" variant="default" className={cn('h-7 px-2.5 text-xs', ticketCaseBlackCtaButtonClassName)}>
               Save stage
             </Button>
           </form>
         </CardContent>
       </Card>
-
-      {ticket.description?.trim() && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm">{ticket.description}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className={`grid gap-4 ${showAssignedCard ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'}`}>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant="outline" className="capitalize">
-              {ticket.status}
-            </Badge>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Priority</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant={priorityVariant(ticket.priority)} className="capitalize">
-              {ticket.priority}
-            </Badge>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Current Stage</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm font-semibold">{stageInfo.label}</p>
-            <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-              {formatTicketLastUpdatedLine(lastUpdatedAt)}
-            </p>
-          </CardContent>
-        </Card>
-
-        {showAssignedCard && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Assigned To</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm font-semibold">{ticket.assignedToName || 'Unassigned'}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Due Date</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm font-semibold">
-              {ticket.dueDate ? ticket.dueDate.toLocaleDateString() : 'N/A'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       <StaffTicketCaseTabs
         ticketRaw={ticketRaw}
@@ -198,6 +130,43 @@ export function StaffTicketDetail({
         viewerName={viewerName}
         viewerRole={viewerRole}
       />
+
+      {(ticket.history ?? []).length > 0 && (viewerRole === 'admin' || viewerRole === 'employee') && (
+        <Card>
+          <CardHeader className="pb-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => setStageHistoryOpen((open) => !open)}
+            >
+              {stageHistoryOpen ? 'Hide Stage History' : 'Show Stage History'}
+            </Button>
+          </CardHeader>
+          {stageHistoryOpen ? (
+            <CardContent>
+              <div className="max-h-56 space-y-2 overflow-y-auto text-sm">
+                {(ticket.history ?? []).map((entry) => (
+                  <div key={entry.id} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-medium">{entry.actorName}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {entry.fromStage ? TICKET_STAGES[entry.fromStage].label : 'Created'}
+                      </Badge>
+                      <span className="text-muted-foreground">to</span>
+                      <Badge className="text-[10px]">{TICKET_STAGES[entry.toStage].label}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{entry.createdAt.toLocaleString()}</p>
+                    {entry.note && <p className="mt-1 text-xs">{entry.note}</p>}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          ) : null}
+        </Card>
+      )}
     </div>
   );
 }

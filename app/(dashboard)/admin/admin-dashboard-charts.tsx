@@ -17,6 +17,7 @@ import {
 const chartColors = ['#1e3a8a', '#047857', '#7c3aed', '#db2777', '#ea580c'];
 
 export function AdminDashboardCharts({ stageData }: { stageData: { name: string; value: number }[] }) {
+  const visibleStageData = stageData.filter((item) => item.value > 0);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
@@ -52,22 +53,41 @@ export function AdminDashboardCharts({ stageData }: { stageData: { name: string;
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={stageData}
+                data={visibleStageData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
                 outerRadius={80}
                 fill="var(--primary)"
                 dataKey="value"
               >
-                {stageData.map((_, index) => (
+                {visibleStageData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip
+                contentStyle={{
+                  background: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '10px',
+                }}
+                itemStyle={{ color: 'hsl(var(--foreground))' }}
+              />
             </PieChart>
           </ResponsiveContainer>
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {visibleStageData.map((item, index) => (
+              <div key={item.name} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <span
+                    className="inline-block size-2.5 rounded-full"
+                    style={{ backgroundColor: chartColors[index % chartColors.length] }}
+                  />
+                  <span>{item.name}</span>
+                </div>
+                <span className="text-sm font-medium text-foreground">{item.value}</span>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
