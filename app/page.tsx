@@ -1,34 +1,25 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
+export default async function Home() {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-export default function Home() {
-  const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  if (!profile) redirect('/login');
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-
-    // Redirect based on user role
-    switch (user?.role) {
-      case 'admin':
-        router.push('/admin');
-        break;
-      case 'employee':
-        router.push('/employee');
-        break;
-      case 'client':
-        router.push('/client');
-        break;
-      default:
-        router.push('/login');
-    }
-  }, [isAuthenticated, user, router]);
-
-  return null;
+  switch (profile.role) {
+    case 'admin':
+      redirect('/admin');
+    case 'employee':
+      redirect('/employee');
+    case 'client':
+      redirect('/client');
+    default:
+      redirect('/login');
+  }
 }

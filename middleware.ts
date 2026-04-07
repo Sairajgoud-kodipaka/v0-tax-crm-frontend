@@ -1,21 +1,16 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/utils/supabase/middleware";
 
-export function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-
-  // Check if user is authenticated via sessionStorage (we'll do this in the client)
-  // For now, just redirect unauthenticated users to login
-  const isAuthRoute = pathname.startsWith('/(auth)') || pathname.startsWith('/login');
-  
-  if (!isAuthRoute && pathname !== '/') {
-    // In a real app, we'd check the session/cookie here
-    // For now, let the client-side handling manage this
-  }
-
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  return await updateSession(request);
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    /*
+     * Match all request paths except static assets and images.
+     * If you use a /api route that must not refresh the session, add it here.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

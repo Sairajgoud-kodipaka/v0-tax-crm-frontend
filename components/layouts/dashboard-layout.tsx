@@ -1,17 +1,17 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
+import { useRouter, usePathname } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
+import type { SessionUser } from '@/lib/session-user';
 import { Button } from '@/components/ui/button';
 import { LogOut, Menu, X } from 'lucide-react';
-import { useState } from 'react';
-import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  user: SessionUser;
   adminSidebarNavigation?: Array<{ href: string; label: string; icon: string }>;
   /** Employee dashboard: Dashboard, Queues, Messages, etc. */
   employeeSidebarNavigation?: Array<{ href: string; label: string; icon: string }>;
@@ -35,6 +35,7 @@ const STAGES = [
 
 export function DashboardLayout({
   children,
+  user,
   adminSidebarNavigation = [],
   employeeSidebarNavigation = [],
   clientSidebarNavigation = [],
@@ -43,17 +44,14 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.push('/login');
+    router.refresh();
   };
-
-  if (!user) {
-    return null;
-  }
 
   const isAdmin = user.role === 'admin';
   const isEmployee = user.role === 'employee';

@@ -1,47 +1,30 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
+import { ClientDashboardShell } from '@/components/layouts/dashboard-role-shells';
 
-import { ReactNode, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
-import { DashboardLayout } from '@/components/layouts/dashboard-layout';
-import { CLIENT_ROUTES } from '@/lib/constants';
+export default async function ClientLayout({ children }: { children: React.ReactNode }) {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-function clientHeaderTitle(pathname: string): string {
-  if (pathname === '/client') return 'Home';
-  if (pathname.startsWith('/client/cases/')) return '';
-  const map: Record<string, string> = {
-    '/client/videos': 'Tax Videos for NRI',
-    '/client/cashback': 'Cash Back',
-    '/client/feedback': 'Feedback',
-    '/client/contact': 'Contact Us',
-    '/client/messages': 'Messages',
-    '/client/documents': 'Documents',
-    '/client/tax-organizer': 'Tax Organizer',
-  };
-  return map[pathname] ?? 'Home';
-}
+  const { data: profile } = await supabase.from('profiles').select('role, full_name, email').eq('id', user.id).maybeSingle();
+  if (!profile) redirect('/login');
 
-export default function ClientLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, isAuthenticated } = useAuthStore();
-
-  useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'client') {
-      router.push('/login');
-    }
-  }, [isAuthenticated, user, router]);
-
-  if (!isAuthenticated || user?.role !== 'client') {
-    return null;
+  if (profile.role !== 'client') {
+    if (profile.role === 'admin') redirect('/admin');
+    if (profile.role === 'employee') redirect('/employee');
+    redirect('/login');
   }
 
-  return (
-    <DashboardLayout
-      clientSidebarNavigation={CLIENT_ROUTES}
-      title={clientHeaderTitle(pathname)}
-    >
-      {children}
-    </DashboardLayout>
-  );
+  const sessionUser = {
+    id: user.id,
+    email: user.email ?? profile.email ?? '',
+    name: profile.full_name ?? user.email?.split('@')[0] ?? 'Client',
+    role: 'client' as const,
+  };
+
+  return <ClientDashboardShell user={sessionUser}>{children}</ClientDashboardShell>;
 }

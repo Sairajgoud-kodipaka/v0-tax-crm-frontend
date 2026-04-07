@@ -1,267 +1,239 @@
-'use client';
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChevronDown, Download, Filter } from 'lucide-react';
+import { getServerSupabase } from '@/lib/data/tickets-queries';
+import { STAGE_NAVIGATION } from '@/lib/constants';
 
-const performanceData = [
-  { month: 'Jan', completed: 12, pending: 5, overdue: 2 },
-  { month: 'Feb', completed: 15, pending: 4, overdue: 1 },
-  { month: 'Mar', completed: 18, pending: 6, overdue: 2 },
-  { month: 'Apr', completed: 14, pending: 5, overdue: 0 },
-  { month: 'May', completed: 16, pending: 3, overdue: 1 },
-];
+type TicketLite = {
+  id: string;
+  stage: string;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+  filing_type: string;
+  assigned_employee_id: string | null;
+};
 
-const employeeProductivity = [
-  { name: 'Michael Chen', completed: 24, pending: 3 },
-  { name: 'James Wilson', completed: 19, pending: 5 },
-  { name: 'Lisa Anderson', completed: 22, pending: 2 },
-];
+type PaymentLite = {
+  ticket_id: string;
+  amount_cents: number;
+  status: string;
+  created_at: string;
+};
 
-const revenueByService = [
-  { service: 'Individual Tax Returns', amount: '$52,000', percentage: 42 },
-  { service: 'Business Tax Returns', amount: '$38,500', percentage: 31 },
-  { service: 'Bookkeeping Services', amount: '$22,000', percentage: 18 },
-  { service: 'Tax Planning Consulting', amount: '$12,000', percentage: 9 },
-];
-
-const keyMetrics = [
-  { label: 'YTD Revenue', value: '$124,500', note: '+12% from last year' },
-  { label: 'Avg Turnaround', value: '4.2 days', note: '-0.5 days vs last month' },
-  { label: 'Client Satisfaction', value: '4.8/5.0', note: 'Based on 24 reviews' },
-];
-
-function escapeCsvCell(val: string | number) {
-  const s = String(val);
-  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function downloadCsv(filename: string, rows: Record<string, string | number>[]) {
-  if (rows.length === 0) return;
-  const headers = Object.keys(rows[0]);
-  const lines = [
-    headers.join(','),
-    ...rows.map((row) => headers.map((h) => escapeCsvCell(row[h] ?? '')).join(',')),
-  ];
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+function monthLabel(date: Date) {
+  return date.toLocaleString('en-US', { month: 'short' });
 }
 
-function downloadSummaryCsv() {
-  const rows = keyMetrics.map((m) => ({
-    metric: m.label,
-    value: m.value,
-    note: m.note,
-  }));
-  downloadCsv(`reports-summary-${todayStamp()}.csv`, rows);
-}
+export default async function ReportsPage() {
+  const supabase = await getServerSupabase();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const yearStart = new Date(now.getFullYear(), 0, 1);
 
-function downloadPerformanceCsv() {
-  downloadCsv(`reports-performance-trend-${todayStamp()}.csv`, performanceData);
-}
+  const { data: ticketRows } = await supabase
+    .from('tickets')
+    .select('id, stage, due_date, created_at, updated_at, filing_type, assigned_employee_id');
+  const { data: paymentRows } = await supabase
+    .from('payments')
+    .select('ticket_id, amount_cents, status, created_at');
+  const { data: employeeRows } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('role', 'employee');
 
-function downloadEmployeeCsv() {
-  downloadCsv(`reports-employee-productivity-${todayStamp()}.csv`, employeeProductivity);
-}
+  const tickets = (ticketRows ?? []) as TicketLite[];
+  const payments = (paymentRows ?? []) as PaymentLite[];
+  const employees = employeeRows ?? [];
 
-function downloadRevenueCsv() {
-  downloadCsv(`reports-revenue-by-service-${todayStamp()}.csv`, revenueByService);
-}
+  const ytdRevenueCents = payments
+    .filter((p) => p.status === 'succeeded' && new Date(p.created_at) >= yearStart)
+    .reduce((sum, p) => sum + p.amount_cents, 0);
 
-function todayStamp() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+  const completedTickets = tickets.filter((t) => t.stage === 'filing-completed' || t.stage === 'closed');
+  const avgTurnaroundDays =
+    completedTickets.length === 0
+      ? 0
+      : completedTickets.reduce((sum, t) => {
+          const created = new Date(t.created_at).getTime();
+          const completed = new Date(t.updated_at).getTime();
+          return sum + Math.max(0, completed - created) / (1000 * 60 * 60 * 24);
+        }, 0) / completedTickets.length;
 
-function downloadAllReportCsvs() {
-  downloadPerformanceCsv();
-  window.setTimeout(() => downloadEmployeeCsv(), 150);
-  window.setTimeout(() => downloadRevenueCsv(), 300);
-  window.setTimeout(() => downloadSummaryCsv(), 450);
-}
+  const overdueCount = tickets.filter((t) => {
+    if (!t.due_date) return false;
+    return new Date(t.due_date) < now && t.stage !== 'closed';
+  }).length;
 
-export default function ReportsPage() {
+  const stageBreakdown = Object.fromEntries(STAGE_NAVIGATION.map((s) => [s.id, 0])) as Record<string, number>;
+  for (const t of tickets) {
+    stageBreakdown[t.stage] = (stageBreakdown[t.stage] ?? 0) + 1;
+  }
+
+  const performanceMonths = Array.from({ length: 6 }, (_, idx) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - idx), 1);
+    return { key: monthKey(d), label: monthLabel(d), completed: 0, pending: 0, overdue: 0 };
+  });
+  const monthIndex = Object.fromEntries(performanceMonths.map((m, i) => [m.key, i]));
+  for (const t of tickets) {
+    const idx = monthIndex[monthKey(new Date(t.updated_at))];
+    if (idx === undefined) continue;
+    if (t.stage === 'filing-completed' || t.stage === 'closed') performanceMonths[idx].completed += 1;
+    else performanceMonths[idx].pending += 1;
+    if (t.due_date && new Date(t.due_date) < now && t.stage !== 'closed') performanceMonths[idx].overdue += 1;
+  }
+
+  const ticketMap = Object.fromEntries(tickets.map((t) => [t.id, t]));
+  const serviceRevenue = new Map<string, number>();
+  for (const p of payments) {
+    if (p.status !== 'succeeded') continue;
+    const t = ticketMap[p.ticket_id];
+    if (!t) continue;
+    serviceRevenue.set(t.filing_type, (serviceRevenue.get(t.filing_type) ?? 0) + p.amount_cents);
+  }
+  const totalRevenue = [...serviceRevenue.values()].reduce((a, b) => a + b, 0);
+  const revenueRows = [...serviceRevenue.entries()]
+    .map(([service, cents]) => ({
+      service,
+      amount: cents / 100,
+      percentage: totalRevenue > 0 ? Math.round((cents / totalRevenue) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const employeeProductivity = employees
+    .map((e) => {
+      const mine = tickets.filter((t) => t.assigned_employee_id === e.id);
+      return {
+        id: e.id,
+        name: e.full_name ?? e.email ?? 'Employee',
+        completed: mine.filter((t) => t.stage === 'filing-completed' || t.stage === 'closed').length,
+        pending: mine.filter((t) => t.stage !== 'filing-completed' && t.stage !== 'closed').length,
+      };
+    })
+    .sort((a, b) => b.completed - a.completed);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports</h1>
-          <p className="text-muted-foreground mt-1">Analytics and insights for your tax practice</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filter
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Export
-                <ChevronDown className="h-4 w-4 opacity-70" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Export data (CSV)</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => downloadSummaryCsv()}>Summary metrics</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => downloadPerformanceCsv()}>Performance trend</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => downloadEmployeeCsv()}>Employee productivity</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => downloadRevenueCsv()}>Revenue by service</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => downloadAllReportCsvs()}>
-                Export everything (4 files)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Reports</h1>
+        <p className="mt-1 text-muted-foreground">Live operational metrics from your Supabase data</p>
       </div>
 
-      {/* Key Metrics */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">YTD Revenue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">$124,500</div>
-            <p className="mt-1 text-xs text-muted-foreground">+12% from last year</p>
+            <div className="text-3xl font-bold text-primary">${(ytdRevenueCents / 100).toLocaleString()}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Succeeded payments since Jan 1</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Avg Turnaround</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-secondary">4.2 days</div>
-            <p className="mt-1 text-xs text-muted-foreground">-0.5 days vs last month</p>
+            <div className="text-3xl font-bold text-secondary">{avgTurnaroundDays.toFixed(1)} days</div>
+            <p className="mt-1 text-xs text-muted-foreground">From ticket creation to completion</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Client Satisfaction</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Overdue Cases</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-accent">4.8/5.0</div>
-            <p className="mt-1 text-xs text-muted-foreground">Based on 24 reviews</p>
+            <div className="text-3xl font-bold text-accent">{overdueCount}</div>
+            <p className="mt-1 text-xs text-muted-foreground">Due date passed and not closed</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Performance Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Performance Trend (5 Months)</CardTitle>
-            <CardDescription>Completed, pending, and overdue cases</CardDescription>
+            <CardTitle>Stage Breakdown</CardTitle>
+            <CardDescription>Current ticket volume by workflow stage</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" stroke="var(--muted-foreground)" />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="completed" stroke="var(--accent)" strokeWidth={2} />
-                <Line type="monotone" dataKey="pending" stroke="var(--primary)" strokeWidth={2} />
-                <Line type="monotone" dataKey="overdue" stroke="var(--destructive)" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Employee Productivity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Employee Productivity</CardTitle>
-            <CardDescription>Cases completed and pending by team member</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={employeeProductivity}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--muted-foreground)"
-                  style={{ fontSize: '12px' }}
-                  angle={-15}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="completed" fill="var(--accent)" />
-                <Bar dataKey="pending" fill="var(--primary)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Revenue Report */}
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>Revenue by Service</CardTitle>
-            <CardDescription>Monthly revenue breakdown by service type</CardDescription>
-          </div>
-          <Button variant="outline" className="w-fit gap-2 shrink-0" onClick={() => downloadRevenueCsv()}>
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {revenueByService.map((item) => (
-              <div key={item.service} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-foreground">{item.service}</p>
-                  <p className="font-bold text-primary">{item.amount}</p>
-                </div>
-                <div className="h-2 w-full rounded-full bg-muted">
-                  <div
-                    className="h-2 rounded-full bg-primary transition-all"
-                    style={{ width: `${item.percentage}%` }}
-                  />
-                </div>
-                <p className="text-right text-xs text-muted-foreground">{item.percentage}% of total</p>
+          <CardContent className="space-y-3">
+            {STAGE_NAVIGATION.map((s) => (
+              <div key={s.id} className="flex items-center justify-between rounded border border-border p-2 text-sm">
+                <span>{s.label}</span>
+                <span className="font-semibold">{stageBreakdown[s.id] ?? 0}</span>
               </div>
             ))}
-          </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Performance Trend (6 months)</CardTitle>
+            <CardDescription>Completed / pending / overdue counts by month</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {performanceMonths.map((m) => (
+              <div key={m.key} className="grid grid-cols-4 items-center gap-2 rounded border border-border p-2 text-sm">
+                <span className="font-medium">{m.label}</span>
+                <span className="text-emerald-600">Done: {m.completed}</span>
+                <span className="text-blue-600">Pending: {m.pending}</span>
+                <span className="text-amber-600">Overdue: {m.overdue}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Employee Productivity</CardTitle>
+          <CardDescription>Assigned workload and completed cases</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {employeeProductivity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No employees found.</p>
+          ) : (
+            employeeProductivity.map((row) => (
+              <div key={row.id} className="grid grid-cols-3 items-center rounded border border-border p-2 text-sm">
+                <span className="font-medium">{row.name}</span>
+                <span>Completed: {row.completed}</span>
+                <span>Pending: {row.pending}</span>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue by Service</CardTitle>
+          <CardDescription>Distribution of succeeded payments by filing type</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {revenueRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No succeeded payments available yet.</p>
+          ) : (
+            revenueRows.map((row) => (
+              <div key={row.service} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{row.service}</span>
+                  <span className="font-semibold">${row.amount.toLocaleString()}</span>
+                </div>
+                <div className="h-2 rounded bg-muted">
+                  <div
+                    className="report-revenue-bar-fill h-2 rounded bg-primary"
+                    style={
+                      {
+                        '--bar-pct': String(row.percentage),
+                      } as React.CSSProperties
+                    }
+                  />
+                </div>
+                <p className="text-right text-xs text-muted-foreground">{row.percentage}% of total</p>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

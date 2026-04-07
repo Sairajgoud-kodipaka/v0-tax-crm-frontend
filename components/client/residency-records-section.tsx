@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { Calendar, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Table,
   TableBody,
@@ -251,33 +252,13 @@ export function ResidencyRecordsSection({
                   <Label htmlFor={f.from}>
                     <Req>From date</Req>
                   </Label>
-                  <div className="relative">
-                    <Input
-                      id={f.from}
-                      name={f.from}
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      className="bg-background pr-10"
-                      required
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DatePicker id={f.from} name={f.from} className="bg-background" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor={f.to}>
                     <Req>To date</Req>
                   </Label>
-                  <div className="relative">
-                    <Input
-                      id={f.to}
-                      name={f.to}
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      className="bg-background pr-10"
-                      required
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DatePicker id={f.to} name={f.to} className="bg-background" required />
                 </div>
               </div>
 

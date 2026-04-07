@@ -1,58 +1,84 @@
-'use client';
-
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { mockTickets } from '@/lib/mock-data';
-import { Download, Trash2, Upload, Filter } from 'lucide-react';
+import { Download, Upload, Filter } from 'lucide-react';
+import { getSessionUser, getServerSupabase } from '@/lib/data/tickets-queries';
+import { clientUploadDocumentFormAction } from '@/app/actions/forms';
 
-export default function ClientDocumentsPage() {
-  const clientTickets = mockTickets.filter(t => t.clientId === 'client-1');
-  const allDocuments = clientTickets.flatMap(t =>
-    t.documents.map(d => ({ ...d, ticketSubject: t.subject, ticketId: t.id }))
+type TicketRow = {
+  id: string;
+  subject: string;
+};
+
+type DocumentRow = {
+  id: string;
+  ticket_id: string;
+  original_filename: string | null;
+  size_bytes: number | null;
+  storage_path: string;
+  created_at: string;
+};
+
+export default async function ClientDocumentsPage() {
+  const session = await getSessionUser();
+  if (!session || session.role !== 'client') return null;
+
+  const supabase = await getServerSupabase();
+  const { data: ticketRows } = await supabase
+    .from('tickets')
+    .select('id, subject')
+    .eq('client_id', session.id)
+    .order('updated_at', { ascending: false });
+
+  const clientTickets = (ticketRows ?? []) as TicketRow[];
+  const ticketIds = clientTickets.map((t) => t.id);
+  const { data: docRows } =
+    ticketIds.length > 0
+      ? await supabase
+          .from('documents')
+          .select('id, ticket_id, original_filename, size_bytes, storage_path, created_at')
+          .in('ticket_id', ticketIds)
+          .in('category', ['client_upload', 'final', 'draft'])
+          .order('created_at', { ascending: false })
+      : { data: [] };
+
+  const docs = (docRows ?? []) as DocumentRow[];
+  const allDocuments = await Promise.all(
+    docs.map(async (d) => {
+      const { data } = await supabase.storage.from('tax-documents').createSignedUrl(d.storage_path, 3600);
+      return {
+        ...d,
+        signedUrl: data?.signedUrl ?? '#',
+      };
+    }),
   );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Documents</h1>
           <p className="text-muted-foreground mt-1">All documents across your cases</p>
         </div>
-        <Button className="bg-primary text-primary-foreground gap-2">
-          <Upload className="w-4 h-4" />
-          Upload Document
-        </Button>
+        <p className="text-xs text-muted-foreground">Upload in each case to attach files to the right ticket.</p>
       </div>
 
-      {/* Filter Bar */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search documents..."
-                className="w-full px-3 py-2 border border-border rounded-lg"
-              />
-            </div>
-            <Button variant="outline" gap-2>
-              <Filter className="w-4 h-4" />
-              Filter
-            </Button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            Showing documents from your active cases.
           </div>
         </CardContent>
       </Card>
 
-      {/* Documents List */}
       {allDocuments.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <p className="text-muted-foreground">No documents uploaded yet</p>
-              <Button className="mt-4 bg-primary text-primary-foreground gap-2">
-                <Upload className="w-4 h-4" />
-                Upload Your First Document
+              <Button asChild className="mt-4 bg-primary text-primary-foreground gap-2">
+                <Link href="/client">Go to your cases</Link>
               </Button>
             </div>
           </CardContent>
@@ -60,7 +86,7 @@ export default function ClientDocumentsPage() {
       ) : (
         <div className="space-y-4">
           {clientTickets.map((ticket) => {
-            const ticketDocs = ticket.documents;
+            const ticketDocs = allDocuments.filter((d) => d.ticket_id === ticket.id);
             return ticketDocs.length > 0 ? (
               <Card key={ticket.id}>
                 <CardHeader>
@@ -72,17 +98,18 @@ export default function ClientDocumentsPage() {
                     {ticketDocs.map((doc) => (
                       <div key={doc.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50">
                         <div className="flex-1">
-                          <p className="font-medium text-foreground">{doc.name}</p>
+                          <p className="font-medium text-foreground">
+                            {doc.original_filename ?? doc.storage_path.split('/').pop() ?? 'Document'}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {Math.round(doc.size / 1024)} KB • {doc.uploadedAt.toLocaleDateString()}
+                            {Math.round((doc.size_bytes ?? 0) / 1024)} KB • {new Date(doc.created_at).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                            <Trash2 className="w-4 h-4" />
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={doc.signedUrl} target="_blank" rel="noreferrer">
+                              <Download className="w-4 h-4" />
+                            </a>
                           </Button>
                         </div>
                       </div>
@@ -121,6 +148,30 @@ export default function ClientDocumentsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {clientTickets.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Upload to Most Recent Case</CardTitle>
+            <CardDescription>For convenience, this uploads as a client document to your latest case.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={clientUploadDocumentFormAction} className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input type="hidden" name="ticketId" value={clientTickets[0].id} />
+              <input
+                required
+                type="file"
+                name="file"
+                className="block w-full rounded-md border border-border px-3 py-2 text-sm"
+              />
+              <Button type="submit" className="gap-2 bg-primary text-primary-foreground">
+                <Upload className="h-4 w-4" />
+                Upload
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

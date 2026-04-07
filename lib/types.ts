@@ -47,9 +47,20 @@ export interface Ticket {
   drafts?: TicketDraftFile[];
   invoices?: TicketInvoiceRow[];
   finalDocuments?: TicketFinalDocument[];
+  history?: TicketHistoryEntry[];
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date;
+}
+
+export interface TicketHistoryEntry {
+  id: string;
+  actorId: string;
+  actorName: string;
+  fromStage?: TicketStage;
+  toStage: TicketStage;
+  note?: string;
+  createdAt: Date;
 }
 
 export interface Document {
@@ -68,6 +79,8 @@ export interface TicketDraftFile {
   id: string;
   name: string;
   sharedAt: Date;
+  /** Signed download URL when loaded from storage */
+  url?: string;
 }
 
 export interface TicketInvoiceRow {
@@ -85,6 +98,7 @@ export interface TicketFinalDocument {
   id: string;
   name: string;
   availableAt?: Date;
+  url?: string;
 }
 
 export interface Message {

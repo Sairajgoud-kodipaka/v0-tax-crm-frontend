@@ -1,8 +1,4 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import { mockTickets } from '@/lib/mock-data';
 import {
   clientStatusPresentation,
   displayTicketRef,
@@ -17,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,15 +26,19 @@ import {
 } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
+import { listTicketsForClient, getSessionUser } from '@/lib/data/tickets-queries';
+import { CreateTicketForm } from './create-ticket-form';
 
-export default function ClientDashboard() {
-  const myCases = mockTickets.filter((t) => t.clientId === 'client-1');
-  const [open, setOpen] = useState(false);
+export default async function ClientDashboard() {
+  const session = await getSessionUser();
+  if (!session) return null;
+
+  const myCases = await listTicketsForClient(session.id);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <div className="flex justify-end">
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog>
           <DialogTrigger asChild>
             <Button type="button" className="gap-2 bg-primary text-primary-foreground">
               <Plus className="size-4" />
@@ -48,26 +49,17 @@ export default function ClientDashboard() {
             <DialogHeader>
               <DialogTitle>Create New Ticket</DialogTitle>
               <DialogDescription>
-                Start a new tax service request. In a full product this would open your intake flow.
+                New cases are normally started when you sign up with your preparer&apos;s invitation link. Contact your
+                preparer if you need another service.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="yr">Tax year</Label>
-                <Input id="yr" type="number" placeholder="2026" defaultValue={2026} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="svc">Service</Label>
-                <Input id="svc" placeholder="e.g. US Individual Income Tax Filing" />
-              </div>
-            </div>
+            <CreateTicketForm />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={() => setOpen(false)}>
-                Continue
-              </Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Close
+                </Button>
+              </DialogClose>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -86,7 +78,7 @@ export default function ClientDashboard() {
             {myCases.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="py-12 text-center text-muted-foreground">
-                  No tickets yet. Create one to get started.
+                  No tickets yet. Use your invitation link from your tax preparer to start a case.
                 </TableCell>
               </TableRow>
             ) : (

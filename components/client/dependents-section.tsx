@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { Calendar, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Table,
   TableBody,
@@ -230,15 +231,8 @@ export function DependentsSection() {
 
               <div className="space-y-2">
                 <Label htmlFor="dep-itin-expiry">ITIN Expiry Date</Label>
-                <div className="relative max-w-xs">
-                  <Input
-                    id="dep-itin-expiry"
-                    name="dep-itin-expiry"
-                    type="text"
-                    placeholder="mm/dd/yyyy"
-                    className="bg-background pr-10"
-                  />
-                  <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <div className="max-w-xs">
+                  <DatePicker id="dep-itin-expiry" name="dep-itin-expiry" className="bg-background" />
                 </div>
               </div>
 
@@ -249,30 +243,11 @@ export function DependentsSection() {
                   <Label htmlFor="dep-dob">
                     <Req>Date of birth</Req>
                   </Label>
-                  <div className="relative">
-                    <Input
-                      id="dep-dob"
-                      name="dep-dob"
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      className="bg-background pr-10"
-                      required
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DatePicker id="dep-dob" name="dep-dob" className="bg-background" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dep-entry">Date of entry</Label>
-                  <div className="relative">
-                    <Input
-                      id="dep-entry"
-                      name="dep-entry"
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      className="bg-background pr-10"
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DatePicker id="dep-entry" name="dep-entry" className="bg-background" />
                 </div>
               </div>
 
@@ -294,16 +269,7 @@ export function DependentsSection() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dep-visa-issued">Visa issued date</Label>
-                  <div className="relative">
-                    <Input
-                      id="dep-visa-issued"
-                      name="dep-visa-issued"
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      className="bg-background pr-10"
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DatePicker id="dep-visa-issued" name="dep-visa-issued" className="bg-background" />
                 </div>
               </div>
 

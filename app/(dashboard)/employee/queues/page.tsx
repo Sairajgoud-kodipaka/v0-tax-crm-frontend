@@ -1,49 +1,34 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
-import { mockTickets } from '@/lib/mock-data';
-import { TICKET_STAGES } from '@/lib/constants';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { TICKET_STAGES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { TicketStage } from '@/lib/types';
+import type { TicketStage } from '@/lib/types';
+import { getSessionUser, listTicketsForStage } from '@/lib/data/tickets-queries';
 
 const DEFAULT_QUEUE_STAGE: TicketStage = 'pending-info';
 
-export default function EmployeeQueuesPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user } = useAuthStore();
-  const stageParam = searchParams.get('stage');
+export default async function EmployeeQueuesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stage?: string }>;
+}) {
+  const sp = await searchParams;
+  const stageParam = sp.stage;
   const stageIsValid = Boolean(stageParam && stageParam in TICKET_STAGES);
 
-  useEffect(() => {
-    if (!stageParam) {
-      router.replace(`/employee/queues?stage=${DEFAULT_QUEUE_STAGE}`);
-      return;
-    }
-    if (!(stageParam in TICKET_STAGES)) {
-      router.replace(`/employee/queues?stage=${DEFAULT_QUEUE_STAGE}`);
-    }
-  }, [stageParam, router]);
-
+  if (!stageParam) {
+    redirect(`/employee/queues?stage=${DEFAULT_QUEUE_STAGE}`);
+  }
   if (!stageIsValid) {
-    return (
-      <div className="flex items-center justify-center p-12 text-sm text-muted-foreground">
-        Redirecting…
-      </div>
-    );
+    redirect(`/employee/queues?stage=${DEFAULT_QUEUE_STAGE}`);
   }
 
   const selectedStage = stageParam as TicketStage;
+  const session = await getSessionUser();
+  if (!session || session.role !== 'employee') return null;
 
-  // Filter tickets by selected stage AND assigned to current employee
-  const filteredTickets = mockTickets.filter(
-    ticket => ticket.stage === selectedStage && ticket.assignedToId === user?.id
-  );
-
+  const filteredTickets = await listTicketsForStage(selectedStage, 'employee', session.id);
   const stageInfo = TICKET_STAGES[selectedStage];
 
   const getPriorityColor = (priority: string) => {
@@ -63,16 +48,15 @@ export default function EmployeeQueuesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Stage Header */}
       <div>
         <h1 className="text-3xl font-bold mb-2">{stageInfo.label}</h1>
         <p className="text-muted-foreground">{stageInfo.description}</p>
         <p className="text-sm text-muted-foreground mt-2">
-          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} assigned to you in this stage
+          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} assigned to you in this
+          stage
         </p>
       </div>
 
-      {/* Tickets List */}
       {filteredTickets.length > 0 ? (
         <div className="grid gap-4">
           {filteredTickets.map((ticket) => (
@@ -109,7 +93,7 @@ export default function EmployeeQueuesPage() {
                   </div>
 
                   <div className="mt-3 text-xs text-muted-foreground">
-                    Updated: {new Date(ticket.updatedAt).toLocaleDateString()}
+                    Updated: {ticket.updatedAt.toLocaleDateString()}
                   </div>
                 </CardContent>
               </Card>
@@ -119,9 +103,7 @@ export default function EmployeeQueuesPage() {
       ) : (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground py-8">
-              No tickets assigned to you in this stage yet.
-            </p>
+            <p className="text-center text-muted-foreground py-8">No tickets assigned to you in this stage yet.</p>
           </CardContent>
         </Card>
       )}

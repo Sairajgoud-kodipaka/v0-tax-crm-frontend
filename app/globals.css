@@ -123,3 +123,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Recharts: axis tick labels and tooltip (replaces inline contentStyle / axis style) */
+.recharts-wrapper .recharts-cartesian-axis-tick text {
+  font-size: 12px;
+}
+
+.recharts-default-tooltip {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.recharts-tooltip-label {
+  color: var(--foreground);
+}
+
+/* Progress indicator: set --progress-value (0–100) on the indicator element */
+[data-slot='progress-indicator'] {
+  transform: translateX(calc((var(--progress-value, 0) - 100) * 1%));
+}
+
+/* Revenue / report bar fill: set --bar-pct (0–100) */
+.report-revenue-bar-fill {
+  width: calc(var(--bar-pct, 0) * 1%);
+}
+
+/* Chart legend swatch: set --chart-legend-swatch to the series color */
+.chart-legend-swatch {
+  background-color: var(--chart-legend-swatch, transparent);
+}

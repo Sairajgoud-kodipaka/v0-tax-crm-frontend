@@ -1,0 +1,48 @@
+'use server';
+
+import { sendTicketMessageAction } from '@/app/actions/messages';
+import { updateTicketStageAction } from '@/app/actions/tickets';
+import { markInvoicePaidMvpAction } from '@/app/actions/payments';
+import { uploadTicketDocumentAction } from '@/app/actions/documents';
+import type { TicketStage } from '@/lib/types';
+import { STAGE_NAVIGATION } from '@/lib/constants';
+
+export async function sendStaffMessageFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  const body = (formData.get('body') as string) ?? '';
+  const isInternal = formData.get('internal') === 'on';
+  if (!ticketId || !body.trim()) {
+    throw new Error('Message required');
+  }
+  await sendTicketMessageAction(ticketId, body, { isInternal });
+}
+
+export async function updateStageFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  const toStage = formData.get('toStage') as TicketStage;
+  const note = (formData.get('note') as string) || undefined;
+  if (!ticketId || !toStage) throw new Error('Invalid');
+  const valid = STAGE_NAVIGATION.some((s) => s.id === toStage);
+  if (!valid) throw new Error('Invalid stage');
+  await updateTicketStageAction(ticketId, toStage, note);
+}
+
+export async function sendClientMessageFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  const body = (formData.get('body') as string) ?? '';
+  if (!ticketId || !body.trim()) throw new Error('Message required');
+  await sendTicketMessageAction(ticketId, body, { isInternal: false });
+}
+
+export async function payInvoiceFormAction(formData: FormData) {
+  const invoiceId = formData.get('invoiceId') as string;
+  const ticketId = formData.get('ticketId') as string;
+  if (!invoiceId || !ticketId) throw new Error('Invalid');
+  await markInvoicePaidMvpAction(invoiceId, ticketId);
+}
+
+export async function clientUploadDocumentFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  if (!ticketId) throw new Error('Invalid');
+  await uploadTicketDocumentAction(ticketId, formData, 'client_upload');
+}

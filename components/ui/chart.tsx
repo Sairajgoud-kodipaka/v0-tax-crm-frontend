@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import * as RechartsPrimitive from 'recharts'
+import { useTheme } from 'next-themes'
 
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,46 @@ export type ChartConfig = {
     | { color?: string; theme?: never }
     | { color?: never; theme: Record<keyof typeof THEMES, string> }
   )
+}
+
+function chartConfigToCssVars(
+  config: ChartConfig,
+  theme: 'light' | 'dark',
+): React.CSSProperties {
+  const style: Record<string, string> = {}
+  for (const [key, itemConfig] of Object.entries(config)) {
+    const color =
+      itemConfig.theme?.[theme] ??
+      ('color' in itemConfig ? itemConfig.color : undefined)
+    if (color) {
+      style[`--color-${key}`] = color
+    }
+  }
+  return style as React.CSSProperties
+}
+
+function subscribeHtmlDarkClass(onStoreChange: () => void) {
+  const el = document.documentElement
+  const obs = new MutationObserver(onStoreChange)
+  obs.observe(el, { attributes: true, attributeFilter: ['class'] })
+  return () => obs.disconnect()
+}
+
+function getHtmlHasDarkClass() {
+  return document.documentElement.classList.contains('dark')
+}
+
+/** Resolves light/dark for chart CSS variables: ThemeProvider if present, else `html.dark`. */
+function useChartColorTheme(): 'light' | 'dark' {
+  const { resolvedTheme } = useTheme()
+  const domDark = React.useSyncExternalStore(
+    subscribeHtmlDarkClass,
+    getHtmlHasDarkClass,
+    () => false,
+  )
+  if (resolvedTheme === 'dark') return 'dark'
+  if (resolvedTheme === 'light') return 'light'
+  return domDark ? 'dark' : 'light'
 }
 
 type ChartContextProps = {
@@ -39,6 +80,7 @@ function ChartContainer({
   className,
   children,
   config,
+  style,
   ...props
 }: React.ComponentProps<'div'> & {
   config: ChartConfig
@@ -48,57 +90,29 @@ function ChartContainer({
 }) {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`
+  const colorTheme = useChartColorTheme()
+  const chartVars = React.useMemo(
+    () => chartConfigToCssVars(config, colorTheme),
+    [config, colorTheme],
+  )
 
   return (
     <ChartContext.Provider value={{ config }}>
       <div
         data-slot="chart"
         data-chart={chartId}
+        style={{ ...chartVars, ...style }}
         className={cn(
           "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
           className,
         )}
         {...props}
       >
-        <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer>
           {children}
         </RechartsPrimitive.ResponsiveContainer>
       </div>
     </ChartContext.Provider>
-  )
-}
-
-const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color,
-  )
-
-  if (!colorConfig.length) {
-    return null
-  }
-
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join('\n')}
-}
-`,
-          )
-          .join('\n'),
-      }}
-    />
   )
 }
 
@@ -288,10 +302,12 @@ function ChartLegendContent({
               <itemConfig.icon />
             ) : (
               <div
-                className="h-2 w-2 shrink-0 rounded-[2px]"
-                style={{
-                  backgroundColor: item.color,
-                }}
+                className="chart-legend-swatch h-2 w-2 shrink-0 rounded-[2px]"
+                style={
+                  {
+                    '--chart-legend-swatch': item.color ?? 'transparent',
+                  } as React.CSSProperties
+                }
               />
             )}
             {itemConfig?.label}
@@ -347,5 +363,4 @@ export {
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-  ChartStyle,
 }

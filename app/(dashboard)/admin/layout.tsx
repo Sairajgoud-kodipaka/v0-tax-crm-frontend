@@ -1,35 +1,30 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
+import { AdminDashboardShell } from '@/components/layouts/dashboard-role-shells';
 
-import { ReactNode, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
-import { DashboardLayout } from '@/components/layouts/dashboard-layout';
-import { ADMIN_ROUTES } from '@/lib/constants';
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-export default function AdminLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { data: profile } = await supabase.from('profiles').select('role, full_name, email').eq('id', user.id).maybeSingle();
+  if (!profile) redirect('/login');
 
-  useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'admin') {
-      router.push('/login');
-    }
-  }, [isAuthenticated, user, router]);
-
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return null;
+  if (profile.role !== 'admin') {
+    if (profile.role === 'employee') redirect('/employee');
+    if (profile.role === 'client') redirect('/client');
+    redirect('/login');
   }
 
-  return (
-    <DashboardLayout
-      adminSidebarNavigation={ADMIN_ROUTES}
-      title="Admin Dashboard"
-    >
-      {children}
-    </DashboardLayout>
-  );
+  const sessionUser = {
+    id: user.id,
+    email: user.email ?? profile.email ?? '',
+    name: profile.full_name ?? user.email?.split('@')[0] ?? 'Admin',
+    role: 'admin' as const,
+  };
+
+  return <AdminDashboardShell user={sessionUser}>{children}</AdminDashboardShell>;
 }

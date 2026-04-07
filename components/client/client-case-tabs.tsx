@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import type { Ticket } from '@/lib/types';
-import { mockMessages } from '@/lib/mock-data';
 import { clientStatusPresentation, displayTicketRef } from '@/lib/client-ui';
+import { hydrateTicket } from '@/lib/data/hydrate-ticket';
+import { sendClientMessageFormAction, payInvoiceFormAction, clientUploadDocumentFormAction } from '@/app/actions/forms';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
-function ticketTitleLine(ticket: Ticket): string {
+function ticketTitleLine(ticket: ReturnType<typeof hydrateTicket>): string {
   const filing =
     ticket.filingType === 'Individual 1040'
       ? 'US Individual Income Tax Filing'
@@ -31,17 +31,24 @@ function ticketTitleLine(ticket: Ticket): string {
   return `${ticket.taxYear} ${filing}`;
 }
 
-function ticketHeaderTitle(ref: string, ticket: Ticket): string {
+function ticketHeaderTitle(ref: string, ticket: ReturnType<typeof hydrateTicket>): string {
   return `Ticket #${ref} - ${ticketTitleLine(ticket)}`;
 }
 
-export function ClientCaseTabs({ ticket }: { ticket: Ticket }) {
+/** Pass JSON-serializable ticket from a Server Component (dates as ISO strings). */
+export function ClientCaseTabs({
+  ticketRaw,
+  organizerAnswers = {},
+}: {
+  ticketRaw: Record<string, unknown>;
+  organizerAnswers?: Record<string, unknown>;
+}) {
+  const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const ref = displayTicketRef(ticket);
   const status = clientStatusPresentation(ticket);
-  const [message, setMessage] = useState('');
   const messages = useMemo(
-    () => mockMessages.filter((m) => m.ticketId === ticket.id && !m.isInternal),
-    [ticket.id],
+    () => (ticket.messages ?? []).filter((m) => !m.isInternal),
+    [ticket.messages],
   );
 
   return (
@@ -117,23 +124,30 @@ export function ClientCaseTabs({ ticket }: { ticket: Ticket }) {
               </div>
             </ScrollArea>
             <div className="border-t border-border p-4">
-              <Textarea
-                placeholder="Type your message…"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="min-h-[88px] resize-none bg-background"
-              />
-              <div className="mt-3 flex justify-end">
-                <Button type="button" className="bg-primary text-primary-foreground">
-                  Send
-                </Button>
-              </div>
+              <form action={sendClientMessageFormAction} className="space-y-3">
+                <input type="hidden" name="ticketId" value={ticket.id} />
+                <Textarea
+                  name="body"
+                  placeholder="Type your message…"
+                  className="min-h-[88px] resize-none bg-background"
+                  required
+                />
+                <div className="flex justify-end">
+                  <Button type="submit" className="bg-primary text-primary-foreground">
+                    Send
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="organizer" className="mt-0 border-0 p-0">
-          <TaxOrganizerPanel />
+          <TaxOrganizerPanel
+            key={ticket.id}
+            ticketId={ticket.id}
+            initialAnswers={organizerAnswers}
+          />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-0 p-4 sm:p-6">
@@ -181,10 +195,14 @@ export function ClientCaseTabs({ ticket }: { ticket: Ticket }) {
                 </TableBody>
               </Table>
             </div>
-            <Button type="button" variant="outline" className="gap-2">
-              <Upload className="size-4" />
-              Upload New Document
-            </Button>
+            <form action={clientUploadDocumentFormAction} encType="multipart/form-data" className="space-y-2">
+              <input type="hidden" name="ticketId" value={ticket.id} />
+              <input type="file" name="file" required className="text-sm" />
+              <Button type="submit" variant="outline" className="gap-2">
+                <Upload className="size-4" />
+                Upload New Document
+              </Button>
+            </form>
           </div>
         </TabsContent>
 
@@ -221,9 +239,17 @@ export function ClientCaseTabs({ ticket }: { ticket: Ticket }) {
                         })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" type="button">
-                          Download
-                        </Button>
+                        {d.url ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={d.url} target="_blank" rel="noreferrer">
+                              Download
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" type="button" disabled>
+                            Download
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -283,9 +309,13 @@ export function ClientCaseTabs({ ticket }: { ticket: Ticket }) {
                           View
                         </Button>
                         {inv.status === 'unpaid' && (
-                          <Button size="sm" type="button" className="bg-primary text-primary-foreground">
-                            Pay
-                          </Button>
+                          <form action={payInvoiceFormAction}>
+                            <input type="hidden" name="invoiceId" value={inv.id} />
+                            <input type="hidden" name="ticketId" value={ticket.id} />
+                            <Button size="sm" type="submit" className="bg-primary text-primary-foreground">
+                              Pay
+                            </Button>
+                          </form>
                         )}
                         {inv.status === 'paid' && (
                           <Button variant="ghost" size="sm" type="button">
@@ -339,9 +369,17 @@ export function ClientCaseTabs({ ticket }: { ticket: Ticket }) {
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" type="button">
-                          Download
-                        </Button>
+                        {f.url ? (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={f.url} target="_blank" rel="noreferrer">
+                              Download
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" type="button" disabled>
+                            Download
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

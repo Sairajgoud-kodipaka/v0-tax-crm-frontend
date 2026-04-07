@@ -1,20 +1,17 @@
-'use client';
-
-import { use } from 'react';
 import Link from 'next/link';
-import { mockTickets } from '@/lib/mock-data';
+import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ClientCaseTabs } from '@/components/client/client-case-tabs';
 import { ChevronLeft } from 'lucide-react';
+import { getTaxOrganizerAnswersAction } from '@/app/actions/organizer';
+import { getSessionUser, getTicketForClientCase } from '@/lib/data/tickets-queries';
 
-export default function ClientCaseDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
-  const ticket = mockTickets.find((t) => t.id === id && t.clientId === 'client-1');
+export default async function ClientCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await getSessionUser();
+  if (!session || session.role !== 'client') notFound();
 
+  const ticket = await getTicketForClientCase(id, session.id);
   if (!ticket) {
     return (
       <div className="space-y-4">
@@ -29,6 +26,8 @@ export default function ClientCaseDetailPage({
     );
   }
 
+  const ticketRaw = JSON.parse(JSON.stringify(ticket)) as Record<string, unknown>;
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <Button variant="ghost" asChild className="w-fit gap-2 px-0 text-muted-foreground hover:text-foreground">
@@ -37,7 +36,7 @@ export default function ClientCaseDetailPage({
           Back to Home
         </Link>
       </Button>
-      <ClientCaseTabs ticket={ticket} />
+      <ClientCaseTabs ticketRaw={ticketRaw} organizerAnswers={organizerAnswers} />
     </div>
   );
 }

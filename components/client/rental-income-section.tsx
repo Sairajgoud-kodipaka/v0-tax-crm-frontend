@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { Calendar, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Table,
   TableBody,
@@ -249,16 +250,7 @@ export function RentalIncomeSection() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-purchase-date">Date of purchase</Label>
-                  <div className="relative">
-                    <Input
-                      id="rent-purchase-date"
-                      name="rent-purchase-date"
-                      type="text"
-                      placeholder="mm/dd/yyyy"
-                      className="bg-background pr-10"
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <DatePicker id="rent-purchase-date" name="rent-purchase-date" className="bg-background" />
                 </div>
               </div>
 

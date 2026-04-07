@@ -28,14 +28,20 @@ export const PRIORITIES: Record<TicketPriority, { label: string; color: string; 
 };
 
 export const FILING_TYPES = [
-  'Individual 1040',
-  'C-Corporation 1120',
-  'S-Corporation 1120-S',
-  'Partnership 1065',
-  'LLC Pass-Through',
-  'Non-Profit 990',
-  'Estate 1041',
-  'Trust 1041',
+  'US Individual Income Tax Filing',
+  'US Individual Amended Income Tax Filing',
+  'US Individual Income Tax Planning',
+  'US FBAR Filing',
+  'US Business Tax Filing',
+  'US Business Tax Filing - Partnership',
+  'US Business Tax Filing - LLC',
+  'US Business Tax Filing - S-corp',
+  'US Business Tax Filing - C-corp',
+  'US Business Incorporation',
+  'US Business Accounting/Bookkeeping Services',
+  'US FICA Service',
+  'US Tax Representation for Audits/Notices',
+  'Indian Individual Income Tax Filing',
 ];
 
 export const ROLES: Record<UserRole, { label: string; description: string }> = {
@@ -86,6 +92,7 @@ export const ADMIN_ROUTES = [
 
 export const EMPLOYEE_ROUTES = [
   { href: '/employee', label: 'Dashboard', icon: 'grid' },
+  { href: '/employee/invite', label: 'Invite Client', icon: 'users' },
   { href: '/employee/messages', label: 'Messages', icon: 'mail' },
 ];
 
@@ -98,23 +105,3 @@ export const CLIENT_ROUTES = [
   { href: '/client/contact', label: 'Contact Us' },
 ];
 
-export const DEMO_CREDENTIALS = [
-  {
-    email: 'admin@taxcrm.com',
-    password: 'admin123',
-    role: 'admin' as UserRole,
-    name: 'Admin User',
-  },
-  {
-    email: 'employee@taxcrm.com',
-    password: 'employee123',
-    role: 'employee' as UserRole,
-    name: 'Employee User',
-  },
-  {
-    email: 'client@taxcrm.com',
-    password: 'client123',
-    role: 'client' as UserRole,
-    name: 'Client User',
-  },
-];

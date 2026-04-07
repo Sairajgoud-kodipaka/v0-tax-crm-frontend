@@ -1,20 +1,19 @@
-'use client';
-
-import { useSearchParams } from 'next/navigation';
-import { mockTickets } from '@/lib/mock-data';
-import { TICKET_STAGES } from '@/lib/constants';
 import Link from 'next/link';
+import { TICKET_STAGES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TicketStage } from '@/lib/types';
+import { Card, CardContent } from '@/components/ui/card';
+import type { TicketStage } from '@/lib/types';
+import { listTicketsForStage } from '@/lib/data/tickets-queries';
 
-export default function AdminQueuesPage() {
-  const searchParams = useSearchParams();
-  const selectedStage = (searchParams.get('stage') as TicketStage) || 'pending-info';
+export default async function AdminQueuesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stage?: string }>;
+}) {
+  const sp = await searchParams;
+  const selectedStage = (sp.stage as TicketStage) || 'pending-info';
 
-  // Filter tickets by selected stage - Admin sees all tickets across all employees
-  const filteredTickets = mockTickets.filter(ticket => ticket.stage === selectedStage);
-
+  const filteredTickets = await listTicketsForStage(selectedStage, 'admin', '');
   const stageInfo = TICKET_STAGES[selectedStage];
 
   const getPriorityColor = (priority: string) => {
@@ -34,16 +33,15 @@ export default function AdminQueuesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Stage Header */}
       <div>
         <h1 className="text-3xl font-bold mb-2">{stageInfo.label}</h1>
         <p className="text-muted-foreground">{stageInfo.description}</p>
         <p className="text-sm text-muted-foreground mt-2">
-          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} in this stage (all employees)
+          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} in this stage (all
+          employees)
         </p>
       </div>
 
-      {/* Tickets List */}
       {filteredTickets.length > 0 ? (
         <div className="grid gap-4">
           {filteredTickets.map((ticket) => (
@@ -80,7 +78,7 @@ export default function AdminQueuesPage() {
                   </div>
 
                   <div className="mt-3 text-xs text-muted-foreground">
-                    Updated: {new Date(ticket.updatedAt).toLocaleDateString()}
+                    Updated: {ticket.updatedAt.toLocaleDateString()}
                   </div>
                 </CardContent>
               </Card>
@@ -90,9 +88,7 @@ export default function AdminQueuesPage() {
       ) : (
         <Card>
           <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground py-8">
-              No tickets in this stage yet.
-            </p>
+            <p className="text-center text-muted-foreground py-8">No tickets in this stage yet.</p>
           </CardContent>
         </Card>
       )}
