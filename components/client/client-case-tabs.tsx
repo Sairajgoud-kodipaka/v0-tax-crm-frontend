@@ -77,7 +77,7 @@ export function ClientCaseTabs({
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
-  const currentPageLabel = `Case Details / ${activeTabLabel}`;
+  const currentPageLabel = activeTabLabel;
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const { lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,

@@ -91,7 +91,7 @@ export function StaffTicketCaseTabs({
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
-  const currentPageLabel = `Case Details / ${activeTabLabel}`;
+  const currentPageLabel = activeTabLabel;
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
   const { onlineOthers, typingHint, clientCurrentTab, clientOnline, notifyTyping } = useTicketPresenceTyping(
     ticket.id,
