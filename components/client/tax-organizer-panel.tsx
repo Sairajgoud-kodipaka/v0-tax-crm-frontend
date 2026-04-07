@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { saveTaxOrganizerAction } from '@/app/actions/organizer';
 import {
   ORGANIZER_SECONDARY,
@@ -299,58 +299,94 @@ function OrganizerFormBody({
   secondary,
   tertiary,
   taxpayerDefaultValues,
+  sectionAnswers,
 }: {
   secondary: OrganizerSecondaryId;
   tertiary: string;
   taxpayerDefaultValues: TaxpayerOrganizerSnapshot;
+  sectionAnswers: Record<string, unknown>;
 }) {
+  const sectionRows = (() => {
+    const section = sectionAnswers[tertiary];
+    if (!section || typeof section !== 'object') return [];
+    const rowsValue = (section as { rows?: unknown }).rows;
+    if (typeof rowsValue !== 'string') return [];
+    try {
+      const parsed = JSON.parse(rowsValue);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  })();
+
   if (secondary === 'basic' && tertiary === 'taxpayer') {
     return <TaxpayerDetailsForm defaultValues={taxpayerDefaultValues} />;
   }
   if (secondary === 'basic' && tertiary === 'dependents') {
-    return <DependentsSection />;
+    return <DependentsSection initialRows={sectionRows} />;
   }
   if (secondary === 'basic' && tertiary === 'address') {
-    return <AddressSection />;
+    return <AddressSection initialValues={(sectionAnswers.address as Record<string, unknown>) ?? {}} />;
   }
   if (secondary === 'basic' && tertiary === 'bank') {
-    return <BankDetailsSection />;
+    return <BankDetailsSection initialValues={(sectionAnswers.bank as Record<string, unknown>) ?? {}} />;
   }
   if (secondary === 'residency' && tertiary === 'taxpayer-residency') {
-    return <TaxpayerResidencySection />;
+    return <TaxpayerResidencySection initialRows={sectionRows} />;
   }
   if (secondary === 'residency' && tertiary === 'spouse-residency') {
-    return <SpouseResidencySection />;
+    return <SpouseResidencySection initialRows={sectionRows} />;
   }
   if (secondary === 'residency' && tertiary === 'additional-state') {
     return <AdditionalStateInfoSection />;
   }
   if (secondary === 'income' && tertiary === 'income-sources') {
-    return <IncomeSourcesSection />;
+    return <IncomeSourcesSection initialValues={(sectionAnswers['income-sources'] as Record<string, unknown>) ?? {}} />;
   }
   if (secondary === 'income' && tertiary === 'additional-incomes') {
-    return <AdditionalIncomesSection />;
+    return <AdditionalIncomesSection initialRows={sectionRows} />;
   }
   if (secondary === 'income' && tertiary === 'rental-income') {
-    return <RentalIncomeSection />;
+    return <RentalIncomeSection initialRows={sectionRows} />;
   }
   if (secondary === 'expense' && tertiary === 'expenses') {
-    return <ExpensesSection />;
+    return <ExpensesSection initialValues={(sectionAnswers.expenses as Record<string, unknown>) ?? {}} />;
   }
   if (secondary === 'expense' && tertiary === 'electric-hybrid') {
-    return <ElectricHybridSection />;
+    return <ElectricHybridSection initialRows={sectionRows} />;
   }
   if (secondary === 'expense' && tertiary === 'daycare') {
-    return <DaycareExpensesSection />;
+    return <DaycareExpensesSection initialRows={sectionRows} />;
   }
   return <PlaceholderSection title="Section" />;
 }
 
-function formDataToStringRecord(fd: FormData): Record<string, string> {
-  const out: Record<string, string> = {};
-  fd.forEach((val, key) => {
-    if (typeof val === 'string') out[key] = val;
+function serializeSectionControls(root: HTMLElement): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const controls = root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    'input[name], textarea[name], select[name]',
+  );
+
+  controls.forEach((el) => {
+    const key = el.name;
+    if (!key) return;
+
+    if (el instanceof HTMLInputElement) {
+      if (el.type === 'checkbox') {
+        out[key] = el.checked;
+        return;
+      }
+      if (el.type === 'radio') {
+        if (el.checked) out[key] = el.value;
+        return;
+      }
+      out[key] = el.value;
+      return;
+    }
+
+    out[key] = el.value;
   });
+
   return out;
 }
 
@@ -360,10 +396,63 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
   const [secondary, setSecondary] = useState<OrganizerSecondaryId>('basic');
   const [tertiary, setTertiary] = useState<string>(() => defaultTertiaryFor('basic'));
   const [pending, startTransition] = useTransition();
+  const sectionRef = useRef<HTMLDivElement | null>(null);
 
   const taxpayerDefaultValues = useMemo(() => coerceTaxpayerSnapshot(answers.taxpayer), [answers]);
 
   const tertiaryItems = ORGANIZER_TERTIARY[secondary];
+
+  function buildPayload(): Record<string, unknown> {
+    let payload: Record<string, unknown> = {
+      ...answers,
+      savedAt: new Date().toISOString(),
+      note: 'Organizer snapshot',
+    };
+
+    if (sectionRef.current) {
+      payload = {
+        ...payload,
+        [tertiary]: serializeSectionControls(sectionRef.current),
+      };
+    }
+
+    // Backward-compatible key used by current Taxpayer default loader.
+    if (tertiary === 'taxpayer') {
+      const taxpayer = payload.taxpayer;
+      if (!taxpayer || typeof taxpayer !== 'object') {
+        payload = {
+          ...payload,
+          taxpayer: payload[tertiary],
+        };
+      }
+    }
+    return payload;
+  }
+
+  async function saveCurrentSection(): Promise<boolean> {
+    if (!ticketId) return false;
+    const payload = buildPayload();
+    await saveTaxOrganizerAction(ticketId, payload);
+    setAnswers(payload);
+    return true;
+  }
+
+  function goToNextSection() {
+    const currentTertiaryItems = ORGANIZER_TERTIARY[secondary];
+    const tertiaryIndex = currentTertiaryItems.findIndex((item) => item.id === tertiary);
+    const nextTertiary = currentTertiaryItems[tertiaryIndex + 1];
+    if (nextTertiary) {
+      setTertiary(nextTertiary.id);
+      return;
+    }
+
+    const secondaryIndex = ORGANIZER_SECONDARY.findIndex((item) => item.id === secondary);
+    const nextSecondary = ORGANIZER_SECONDARY[secondaryIndex + 1];
+    if (nextSecondary) {
+      setSecondary(nextSecondary.id);
+      setTertiary(defaultTertiaryFor(nextSecondary.id));
+    }
+  }
 
   return (
     <div className="flex flex-col border-t border-border bg-muted/30">
@@ -417,11 +506,14 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
       {/* Form content */}
       <div className="bg-muted/30 p-4 sm:p-6">
         <div className="mx-auto max-w-5xl rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
-          <OrganizerFormBody
-            secondary={secondary}
-            tertiary={tertiary}
-            taxpayerDefaultValues={taxpayerDefaultValues}
-          />
+          <div ref={sectionRef}>
+            <OrganizerFormBody
+              secondary={secondary}
+              tertiary={tertiary}
+              taxpayerDefaultValues={taxpayerDefaultValues}
+              sectionAnswers={answers}
+            />
+          </div>
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
             <Button
               type="button"
@@ -429,29 +521,27 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
               className={ticketCaseBlackCtaButtonClassName}
               disabled={!ticketId || pending}
               onClick={() => {
-                if (!ticketId) return;
                 startTransition(async () => {
-                  let payload: Record<string, unknown> = {
-                    ...answers,
-                    savedAt: new Date().toISOString(),
-                    note: 'Organizer snapshot',
-                  };
-                  if (secondary === 'basic' && tertiary === 'taxpayer') {
-                    const el = document.getElementById(TAXPAYER_ORGANIZER_FORM_ID);
-                    if (el instanceof HTMLFormElement) {
-                      const taxpayer = formDataToStringRecord(new FormData(el));
-                      payload = { ...payload, taxpayer };
-                    }
-                  }
-                  await saveTaxOrganizerAction(ticketId, payload);
-                  setAnswers(payload);
+                  await saveCurrentSection();
                 });
               }}
             >
               {pending ? 'Saving…' : 'Save'}
             </Button>
-            <Button type="button" variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
-              Submit
+            <Button
+              type="button"
+              variant="secondary"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              disabled={!ticketId || pending}
+              onClick={() => {
+                startTransition(async () => {
+                  const saved = await saveCurrentSection();
+                  if (!saved) return;
+                  goToNextSection();
+                });
+              }}
+            >
+              {pending ? 'Saving…' : 'Save & Next'}
             </Button>
           </div>
         </div>

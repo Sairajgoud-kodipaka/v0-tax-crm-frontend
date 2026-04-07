@@ -1,13 +1,18 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import Link from 'next/link';
-import { clientStatusPresentation, displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
+import { displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
-import { sendClientMessageFormAction, payInvoiceFormAction, clientUploadDocumentFormAction } from '@/app/actions/forms';
+import {
+  sendClientMessageFormAction,
+  payInvoiceFormAction,
+  clientUploadDocumentFormAction,
+  clientDeleteDocumentFormAction,
+} from '@/app/actions/forms';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Upload } from 'lucide-react';
+import { Trash2, Upload } from 'lucide-react';
 import { TaxOrganizerPanel } from '@/components/client/tax-organizer-panel';
 import {
   ticketCaseBlackCtaButtonClassName,
@@ -31,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import type { UserRole } from '@/lib/types';
+import { toast } from '@/hooks/use-toast';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -60,15 +66,22 @@ export function ClientCaseTabs({
   viewerName: string;
   viewerRole?: UserRole;
 }) {
+  const caseTabs = [
+    ['messages', 'Messages'],
+    ['organizer', 'Tax Organizer'],
+    ['documents', 'My Documents'],
+    ['drafts', 'Tax Drafts'],
+    ['invoices', 'Invoices'],
+    ['final', 'Final Documents'],
+  ] as const;
+  const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
-  const { stage: liveStage, lastUpdatedAt } = useTicketStageRealtime(
+  const { lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,
     ticket.stage,
     ticket.updatedAt,
   );
-  const ticketForBadge = useMemo(() => ({ ...ticket, stage: liveStage }), [ticket, liveStage]);
   const ref = displayTicketRef(ticket);
-  const status = clientStatusPresentation(ticketForBadge);
   const messagesLive = useTicketMessagesRealtime(ticket.id, ticket.messages ?? [], {
     hideInternal: true,
   });
@@ -85,6 +98,33 @@ export function ClientCaseTabs({
   );
   const seenLabel = readReceiptLabel(messages, viewerUserId, viewerIsStaff, reads);
   const primaryTrigger = ticketCasePrimaryTabTriggerClassName();
+  const activeTabLabel =
+    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
+  const uploadFormRef = useRef<HTMLFormElement | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
+  const [selectedUploadPreviewUrl, setSelectedUploadPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const openLinkOrNotify = (url: string | undefined, emptyMessage: string) => {
+    if (!url) {
+      toast({ title: emptyMessage });
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  useEffect(() => {
+    if (!selectedUploadFile) {
+      setSelectedUploadPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedUploadFile);
+    setSelectedUploadPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedUploadFile]);
+  useEffect(() => {
+    if (!uploading) return;
+    setUploading(false);
+  }, [ticket.documents.length, uploading]);
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -94,32 +134,20 @@ export function ClientCaseTabs({
           {ticketHeaderTitle(ref, ticket)}
         </h1>
         <div className="flex flex-col items-end gap-1">
-          <span
-            className={cn(
-              'inline-flex w-fit items-center rounded-md px-3 py-1.5 text-xs font-semibold',
-              status.className,
-            )}
-          >
-            {status.label}
-          </span>
+          <div className="flex items-center">
+            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] font-medium text-foreground/80">
+              {activeTabLabel}
+            </span>
+          </div>
           <span className="text-[11px] leading-tight text-muted-foreground tabular-nums">
             {formatTicketLastUpdatedLine(lastUpdatedAt)}
           </span>
         </div>
       </div>
 
-      <Tabs defaultValue="messages" className="gap-0">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as (typeof caseTabs)[number][0])} className="gap-0">
         <TabsList className={ticketCasePrimaryTabsListClassName}>
-          {(
-            [
-              ['messages', 'Messages'],
-              ['organizer', 'Tax Organizer'],
-              ['documents', 'My Documents'],
-              ['drafts', 'Tax Drafts'],
-              ['invoices', 'Invoices'],
-              ['final', 'Final Documents'],
-            ] as const
-          ).map(([id, label]) => (
+          {caseTabs.map(([id, label]) => (
             <TabsTrigger key={id} value={id} className={primaryTrigger}>
               {label}
             </TabsTrigger>
@@ -228,11 +256,19 @@ export function ClientCaseTabs({
                           })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={doc.url} target="_blank" rel="noreferrer">
-                              View
-                            </Link>
-                          </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={doc.url} target="_blank" rel="noreferrer">
+                                View
+                              </Link>
+                            </Button>
+                            <form action={clientDeleteDocumentFormAction}>
+                              <input type="hidden" name="documentId" value={doc.id} />
+                              <Button type="submit" variant="ghost" size="icon" aria-label="Delete document">
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </form>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -240,13 +276,60 @@ export function ClientCaseTabs({
                 </TableBody>
               </Table>
             </div>
-            <form action={clientUploadDocumentFormAction} encType="multipart/form-data" className="space-y-2">
+            <form
+              ref={uploadFormRef}
+              action={clientUploadDocumentFormAction}
+              encType="multipart/form-data"
+              className="space-y-3"
+            >
               <input type="hidden" name="ticketId" value={ticket.id} />
-              <input type="file" name="file" required className="text-sm" />
-              <Button type="submit" variant="outline" className="gap-2">
-                <Upload className="size-4" />
-                Upload New Document
-              </Button>
+              <input
+                ref={uploadInputRef}
+                type="file"
+                name="file"
+                required
+                className="hidden"
+                onChange={(e) => {
+                  const nextFile = e.target.files?.[0] ?? null;
+                  setSelectedUploadFile(nextFile);
+                  if (nextFile && uploadFormRef.current) {
+                    setUploading(true);
+                    uploadFormRef.current.requestSubmit();
+                  }
+                }}
+              />
+              {selectedUploadFile ? (
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-sm font-medium text-foreground">{selectedUploadFile.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(selectedUploadFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  {selectedUploadPreviewUrl && selectedUploadFile.type.startsWith('image/') ? (
+                    <img
+                      src={selectedUploadPreviewUrl}
+                      alt="Selected document preview"
+                      className="mt-3 max-h-56 w-auto rounded-md border border-border object-contain"
+                    />
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Preview is available after upload for this file type.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  disabled={uploading}
+                  onClick={() => uploadInputRef.current?.click()}
+                >
+                  <Upload className="size-4" />
+                  {selectedUploadFile ? 'Choose another file' : 'Choose file'}
+                </Button>
+                {uploading ? <span className="text-xs text-muted-foreground">Uploading...</span> : null}
+              </div>
             </form>
           </div>
         </TabsContent>
@@ -291,7 +374,12 @@ export function ClientCaseTabs({
                             </a>
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" type="button" disabled>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            onClick={() => openLinkOrNotify(d.url, 'Draft not available yet.')}
+                          >
                             Download
                           </Button>
                         )}
@@ -350,7 +438,17 @@ export function ClientCaseTabs({
                         </span>
                       )}
                       <div className="ml-auto flex gap-2">
-                        <Button variant="outline" size="sm" type="button">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          onClick={() =>
+                            toast({
+                              title: `Invoice ${inv.invoiceNumber}`,
+                              description: inv.description || 'Invoice details are shown in this card.',
+                            })
+                          }
+                        >
                           View
                         </Button>
                         {inv.status === 'unpaid' && (
@@ -363,7 +461,19 @@ export function ClientCaseTabs({
                           </form>
                         )}
                         {inv.status === 'paid' && (
-                          <Button variant="ghost" size="sm" type="button">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            type="button"
+                            onClick={() =>
+                              toast({
+                                title: `Receipt · ${inv.invoiceNumber}`,
+                                description: inv.paidAt
+                                  ? `Paid on ${inv.paidAt.toLocaleDateString()}`
+                                  : 'Receipt details are being prepared.',
+                              })
+                            }
+                          >
                             View receipt
                           </Button>
                         )}
@@ -421,7 +531,12 @@ export function ClientCaseTabs({
                             </a>
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" type="button" disabled>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            onClick={() => openLinkOrNotify(f.url, 'Final document not available yet.')}
+                          >
                             Download
                           </Button>
                         )}

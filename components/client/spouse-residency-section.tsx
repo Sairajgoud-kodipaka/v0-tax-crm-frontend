@@ -4,7 +4,7 @@ import { ResidencyRecordsSection } from '@/components/client/residency-records-s
 
 export type { ResidencyRecordRow as SpouseResidencyRow } from '@/components/client/residency-records-section';
 
-export function SpouseResidencySection() {
+export function SpouseResidencySection({ initialRows = [] }: { initialRows?: unknown[] }) {
   return (
     <ResidencyRecordsSection
       sectionTitle="Spouse Residency"
@@ -12,6 +12,7 @@ export function SpouseResidencySection() {
       modalTitle="Add Spouse Residency Info"
       emptyStateActionLabel="Add Spouse Residency Info"
       fieldPrefix="sp-res"
+      initialRows={initialRows}
     />
   );
 }

@@ -18,7 +18,9 @@ function Req({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function BankDetailsSection() {
+type BankDetailsSectionValues = Record<string, unknown>;
+
+export function BankDetailsSection({ initialValues = {} }: { initialValues?: BankDetailsSectionValues }) {
   return (
     <div className="space-y-6">
       <h2 className="text-base font-semibold text-foreground">Bank Details</h2>
@@ -28,14 +30,26 @@ export function BankDetailsSection() {
           <Label htmlFor="bank-name">
             <Req>Bank name</Req>
           </Label>
-          <Input id="bank-name" name="bank-name" autoComplete="organization" className="bg-background" />
+          <Input
+            id="bank-name"
+            name="bank-name"
+            autoComplete="organization"
+            className="bg-background"
+            defaultValue={String(initialValues['bank-name'] ?? '')}
+          />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="bank-holder">
             <Req>Account holder name</Req>
           </Label>
-          <Input id="bank-holder" name="bank-holder" autoComplete="name" className="bg-background" />
+          <Input
+            id="bank-holder"
+            name="bank-holder"
+            autoComplete="name"
+            className="bg-background"
+            defaultValue={String(initialValues['bank-holder'] ?? '')}
+          />
         </div>
 
         <div className="space-y-2">
@@ -48,6 +62,7 @@ export function BankDetailsSection() {
             inputMode="numeric"
             autoComplete="off"
             className="bg-background"
+            defaultValue={String(initialValues['bank-account'] ?? '')}
           />
         </div>
 
@@ -61,6 +76,7 @@ export function BankDetailsSection() {
             inputMode="numeric"
             autoComplete="off"
             className="bg-background"
+            defaultValue={String(initialValues['bank-routing'] ?? '')}
           />
         </div>
 
@@ -68,7 +84,12 @@ export function BankDetailsSection() {
           <Label htmlFor="bank-type">
             <Req>Account type</Req>
           </Label>
-          <select id="bank-type" name="bank-type" defaultValue="checking" className={selectClassName}>
+          <select
+            id="bank-type"
+            name="bank-type"
+            defaultValue={String(initialValues['bank-type'] ?? 'checking')}
+            className={selectClassName}
+          >
             <option value="checking">Checking</option>
             <option value="savings">Savings</option>
           </select>
@@ -81,6 +102,7 @@ export function BankDetailsSection() {
             name="bank-comments"
             className="min-h-[140px] resize-y bg-background"
             placeholder=""
+            defaultValue={String(initialValues['bank-comments'] ?? '')}
           />
         </div>
       </div>

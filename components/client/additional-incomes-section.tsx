@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,10 +43,14 @@ export type AdditionalIncomeRow = {
   comments: string;
 };
 
-export function AdditionalIncomesSection() {
+export function AdditionalIncomesSection({ initialRows = [] }: { initialRows?: unknown[] }) {
   const formId = useId();
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<AdditionalIncomeRow[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [rows, setRows] = useState<AdditionalIncomeRow[]>(() => {
+    return (initialRows as AdditionalIncomeRow[]).filter((row) => row && typeof row === 'object');
+  });
+  const editingRow = rows.find((row) => row.id === editingId);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -58,18 +62,19 @@ export function AdditionalIncomesSection() {
     const comments = String(fd.get('add-inc-comments') ?? '').trim();
     if (!incomeSource || !incomeType || !incomeAmount || !taxPaid) return;
 
-    setRows((prev) => [
-      ...prev,
-      {
-        id: `add-inc-${Date.now()}`,
-        incomeSource,
-        incomeType,
-        incomeAmount,
-        taxPaid,
-        comments,
-      },
-    ]);
+    const nextRow: AdditionalIncomeRow = {
+      id: editingId ?? `add-inc-${Date.now()}`,
+      incomeSource,
+      incomeType,
+      incomeAmount,
+      taxPaid,
+      comments,
+    };
+    setRows((prev) =>
+      editingId ? prev.map((row) => (row.id === editingId ? nextRow : row)) : [...prev, nextRow],
+    );
     e.currentTarget.reset();
+    setEditingId(null);
     setOpen(false);
   }
 
@@ -115,7 +120,17 @@ export function AdditionalIncomesSection() {
                   <TableCell>{r.incomeAmount}</TableCell>
                   <TableCell>{r.taxPaid}</TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" variant="ghost" size="icon" className="size-8" aria-label="Edit">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      aria-label="Edit"
+                      onClick={() => {
+                        setEditingId(r.id);
+                        setOpen(true);
+                      }}
+                    >
                       <Pencil className="size-4" />
                     </Button>
                   </TableCell>
@@ -137,21 +152,23 @@ export function AdditionalIncomesSection() {
           </TableBody>
         </Table>
       </div>
+      <input type="hidden" name="rows" value={JSON.stringify(rows)} readOnly />
 
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
-          Next Page
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setEditingId(null);
+        }}
+      >
         <DialogContent
           showCloseButton={false}
           className="max-h-[min(90vh,640px)] gap-0 overflow-hidden p-0 sm:max-w-2xl"
         >
           <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
-            <DialogTitle className="text-base font-semibold text-foreground">Add Income</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              {editingId ? 'Edit Income' : 'Add Income'}
+            </DialogTitle>
             <DialogClose asChild>
               <button
                 type="button"
@@ -164,6 +181,7 @@ export function AdditionalIncomesSection() {
           </div>
 
           <form
+            key={editingId ?? 'new'}
             id={formId}
             onSubmit={handleSubmit}
             className="max-h-[calc(min(90vh,640px)-52px)] overflow-y-auto p-4 sm:p-6"
@@ -174,13 +192,13 @@ export function AdditionalIncomesSection() {
                   <Label htmlFor="add-inc-source">
                     <Req>Income source</Req>
                   </Label>
-                  <Input id="add-inc-source" name="add-inc-source" className="bg-background" required />
+                  <Input id="add-inc-source" name="add-inc-source" className="bg-background" required defaultValue={editingRow?.incomeSource ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="add-inc-type">
                     <Req>Income type</Req>
                   </Label>
-                  <Input id="add-inc-type" name="add-inc-type" className="bg-background" required />
+                  <Input id="add-inc-type" name="add-inc-type" className="bg-background" required defaultValue={editingRow?.incomeType ?? ''} />
                 </div>
               </div>
 
@@ -189,24 +207,24 @@ export function AdditionalIncomesSection() {
                   <Label htmlFor="add-inc-amount">
                     <Req>Income amount</Req>
                   </Label>
-                  <Input id="add-inc-amount" name="add-inc-amount" className="bg-background" required />
+                  <Input id="add-inc-amount" name="add-inc-amount" className="bg-background" required defaultValue={editingRow?.incomeAmount ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="add-inc-tax">
                     <Req>Income tax paid</Req>
                   </Label>
-                  <Input id="add-inc-tax" name="add-inc-tax" className="bg-background" required />
+                  <Input id="add-inc-tax" name="add-inc-tax" className="bg-background" required defaultValue={editingRow?.taxPaid ?? ''} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="add-inc-comments">Comments</Label>
-                <Textarea id="add-inc-comments" name="add-inc-comments" className="min-h-[100px] resize-y bg-background" />
+                <Textarea id="add-inc-comments" name="add-inc-comments" className="min-h-[100px] resize-y bg-background" defaultValue={editingRow?.comments ?? ''} />
               </div>
 
               <div className="flex justify-center border-t border-border pt-4">
                 <Button type="submit" variant="default" className={cn('min-w-[120px]', ticketCaseBlackCtaButtonClassName)}>
-                  Save
+                  {editingId ? 'Update' : 'Save'}
                 </Button>
               </div>
             </div>

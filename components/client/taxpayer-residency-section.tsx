@@ -4,7 +4,7 @@ import { ResidencyRecordsSection } from '@/components/client/residency-records-s
 
 export type { ResidencyRecordRow as TaxpayerResidencyRow } from '@/components/client/residency-records-section';
 
-export function TaxpayerResidencySection() {
+export function TaxpayerResidencySection({ initialRows = [] }: { initialRows?: unknown[] }) {
   return (
     <ResidencyRecordsSection
       sectionTitle="Taxpayer Residency"
@@ -12,6 +12,7 @@ export function TaxpayerResidencySection() {
       modalTitle="Add Taxpayer Residency Info"
       emptyStateActionLabel="Add Taxpayer Residency Info"
       fieldPrefix="tp-res"
+      initialRows={initialRows}
     />
   );
 }

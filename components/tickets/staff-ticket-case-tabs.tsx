@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import type { UserRole } from '@/lib/types';
+import { toast } from '@/hooks/use-toast';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -60,6 +61,15 @@ export function StaffTicketCaseTabs({
   viewerName: string;
   viewerRole: UserRole;
 }) {
+  const caseTabs = [
+    ['messages', 'Messages'],
+    ['organizer', 'Tax Organizer'],
+    ['documents', 'My Documents'],
+    ['drafts', 'Tax Drafts'],
+    ['invoices', 'Invoices'],
+    ['final', 'Final Documents'],
+  ] as const;
+  const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const ref = displayTicketRef(ticket);
   const status = clientStatusPresentation(ticket);
@@ -73,6 +83,15 @@ export function StaffTicketCaseTabs({
   );
   const seenLabel = readReceiptLabel(messages, viewerUserId, viewerIsStaff, reads);
   const primaryTrigger = ticketCasePrimaryTabTriggerClassName();
+  const activeTabLabel =
+    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
+  const openLinkOrNotify = (url: string | undefined, emptyMessage: string) => {
+    if (!url) {
+      toast({ title: emptyMessage });
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -88,32 +107,28 @@ export function StaffTicketCaseTabs({
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span
-            className={cn(
-              'inline-flex w-fit items-center rounded-md px-3 py-1.5 text-xs font-semibold',
-              status.className,
-            )}
-          >
-            {status.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] font-medium text-foreground/80">
+              {activeTabLabel}
+            </span>
+            <span
+              className={cn(
+                'inline-flex w-fit items-center rounded-md px-3 py-1.5 text-xs font-semibold',
+                status.className,
+              )}
+            >
+              {status.label}
+            </span>
+          </div>
           <span className="text-[11px] leading-tight text-muted-foreground tabular-nums">
             {formatTicketLastUpdatedLine(ticket.updatedAt)}
           </span>
         </div>
       </div>
 
-      <Tabs defaultValue="messages" className="gap-0">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as (typeof caseTabs)[number][0])} className="gap-0">
         <TabsList className={ticketCasePrimaryTabsListClassName}>
-          {(
-            [
-              ['messages', 'Messages'],
-              ['organizer', 'Tax Organizer'],
-              ['documents', 'My Documents'],
-              ['drafts', 'Tax Drafts'],
-              ['invoices', 'Invoices'],
-              ['final', 'Final Documents'],
-            ] as const
-          ).map(([id, label]) => (
+          {caseTabs.map(([id, label]) => (
             <TabsTrigger key={id} value={id} className={primaryTrigger}>
               {label}
             </TabsTrigger>
@@ -314,7 +329,12 @@ export function StaffTicketCaseTabs({
                             </a>
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" type="button" disabled>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            onClick={() => openLinkOrNotify(d.url, 'Draft not available yet.')}
+                          >
                             Download
                           </Button>
                         )}
@@ -370,7 +390,17 @@ export function StaffTicketCaseTabs({
                         </span>
                       )}
                       <div className="ml-auto">
-                        <Button variant="outline" size="sm" type="button">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          onClick={() =>
+                            toast({
+                              title: `Invoice ${inv.invoiceNumber}`,
+                              description: inv.description || 'Invoice details are shown in this card.',
+                            })
+                          }
+                        >
                           View
                         </Button>
                       </div>
@@ -422,7 +452,12 @@ export function StaffTicketCaseTabs({
                             </a>
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" type="button" disabled>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            type="button"
+                            onClick={() => openLinkOrNotify(f.url, 'Final document not available yet.')}
+                          >
                             Download
                           </Button>
                         )}

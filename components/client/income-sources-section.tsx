@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -32,7 +33,19 @@ const INCOME_TYPE_ITEMS: { id: string; label: string }[] = [
   { id: 'inc-src-1099div', label: 'Income from Dividend Form 1099-DIV.' },
 ];
 
-export function IncomeSourcesSection() {
+type IncomeSourcesValues = Record<string, unknown>;
+
+export function IncomeSourcesSection({ initialValues = {} }: { initialValues?: IncomeSourcesValues }) {
+  const initialChecks = useMemo(
+    () =>
+      INCOME_TYPE_ITEMS.reduce<Record<string, boolean>>((acc, item) => {
+        acc[item.id] = initialValues[item.id] === true;
+        return acc;
+      }, {}),
+    [initialValues],
+  );
+  const [checks, setChecks] = useState<Record<string, boolean>>(initialChecks);
+
   return (
     <div className="space-y-10">
       <h2 className="text-base font-semibold text-foreground">Income Sources</h2>
@@ -41,7 +54,23 @@ export function IncomeSourcesSection() {
         <ul className="space-y-3">
           {INCOME_TYPE_ITEMS.map((item) => (
             <li key={item.id} className="flex items-start gap-3">
-              <Checkbox id={item.id} name={item.id} className="mt-0.5" />
+              <Checkbox
+                id={item.id}
+                className="mt-0.5"
+                checked={checks[item.id] ?? false}
+                onCheckedChange={(checked) =>
+                  setChecks((prev) => ({ ...prev, [item.id]: checked === true }))
+                }
+              />
+              <input
+                type="checkbox"
+                name={item.id}
+                checked={checks[item.id] ?? false}
+                readOnly
+                className="hidden"
+                tabIndex={-1}
+                aria-hidden
+              />
               <Label htmlFor={item.id} className="cursor-pointer text-sm font-normal leading-snug text-foreground">
                 {item.label}
               </Label>
@@ -54,7 +83,12 @@ export function IncomeSourcesSection() {
         <Label htmlFor="inc-src-overtime" className="text-sm font-normal leading-snug">
           Did you receive any qualified overtime pay in 2024?
         </Label>
-        <select id="inc-src-overtime" name="inc-src-overtime" defaultValue="no" className={selectClassName}>
+        <select
+          id="inc-src-overtime"
+          name="inc-src-overtime"
+          defaultValue={String(initialValues['inc-src-overtime'] ?? 'no')}
+          className={selectClassName}
+        >
           <option value="no">No</option>
           <option value="yes">Yes</option>
         </select>
@@ -78,7 +112,12 @@ export function IncomeSourcesSection() {
               <Label htmlFor="inc-src-tp-fbar">
                 <Req>Taxpayer fbar</Req>
               </Label>
-              <select id="inc-src-tp-fbar" name="inc-src-tp-fbar" defaultValue="no" className={selectClassName}>
+              <select
+                id="inc-src-tp-fbar"
+                name="inc-src-tp-fbar"
+                defaultValue={String(initialValues['inc-src-tp-fbar'] ?? 'no')}
+                className={selectClassName}
+              >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
@@ -90,7 +129,12 @@ export function IncomeSourcesSection() {
               <Label htmlFor="inc-src-sp-fbar">
                 <Req>Spouse fbar</Req>
               </Label>
-              <select id="inc-src-sp-fbar" name="inc-src-sp-fbar" defaultValue="no" className={selectClassName}>
+              <select
+                id="inc-src-sp-fbar"
+                name="inc-src-sp-fbar"
+                defaultValue={String(initialValues['inc-src-sp-fbar'] ?? 'no')}
+                className={selectClassName}
+              >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
@@ -104,7 +148,12 @@ export function IncomeSourcesSection() {
               <Label htmlFor="inc-src-tp-fatca">
                 <Req>Taxpayer fatca</Req>
               </Label>
-              <select id="inc-src-tp-fatca" name="inc-src-tp-fatca" defaultValue="no" className={selectClassName}>
+              <select
+                id="inc-src-tp-fatca"
+                name="inc-src-tp-fatca"
+                defaultValue={String(initialValues['inc-src-tp-fatca'] ?? 'no')}
+                className={selectClassName}
+              >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
@@ -113,7 +162,12 @@ export function IncomeSourcesSection() {
               <Label htmlFor="inc-src-sp-fatca">
                 <Req>Spouse fatca</Req>
               </Label>
-              <select id="inc-src-sp-fatca" name="inc-src-sp-fatca" defaultValue="no" className={selectClassName}>
+              <select
+                id="inc-src-sp-fatca"
+                name="inc-src-sp-fatca"
+                defaultValue={String(initialValues['inc-src-sp-fatca'] ?? 'no')}
+                className={selectClassName}
+              >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
@@ -134,7 +188,12 @@ export function IncomeSourcesSection() {
           <Label htmlFor="inc-src-mf-india" className="text-sm font-normal leading-snug">
             <Req>Do you hold Mutual Funds or other investments in India or anywhere outside the US?</Req>
           </Label>
-          <select id="inc-src-mf-india" name="inc-src-mf-india" defaultValue="no" className={selectClassName}>
+          <select
+            id="inc-src-mf-india"
+            name="inc-src-mf-india"
+            defaultValue={String(initialValues['inc-src-mf-india'] ?? 'no')}
+            className={selectClassName}
+          >
             <option value="no">No</option>
             <option value="yes">Yes</option>
           </select>
@@ -163,6 +222,7 @@ export function IncomeSourcesSection() {
           name="inc-src-comments"
           placeholder=""
           className="min-h-[120px] resize-y bg-background sm:max-w-3xl"
+          defaultValue={String(initialValues['inc-src-comments'] ?? '')}
         />
       </div>
     </div>

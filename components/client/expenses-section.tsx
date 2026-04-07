@@ -1,11 +1,10 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
-import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
 
 const selectClassName = cn(
@@ -34,7 +33,19 @@ const EXPENSE_CHECKBOX_ITEMS: { id: string; label: string }[] = [
   { id: 'exp-esa', label: 'Invested in ESA' },
 ];
 
-export function ExpensesSection() {
+type ExpensesValues = Record<string, unknown>;
+
+export function ExpensesSection({ initialValues = {} }: { initialValues?: ExpensesValues }) {
+  const initialChecks = useMemo(
+    () =>
+      EXPENSE_CHECKBOX_ITEMS.reduce<Record<string, boolean>>((acc, item) => {
+        acc[item.id] = initialValues[item.id] === true;
+        return acc;
+      }, {}),
+    [initialValues],
+  );
+  const [checks, setChecks] = useState<Record<string, boolean>>(initialChecks);
+
   return (
     <div className="space-y-8">
       <h2 className="text-base font-semibold text-foreground">Expenses</h2>
@@ -45,7 +56,12 @@ export function ExpensesSection() {
             <Label htmlFor={item.id} className="text-sm font-normal text-foreground">
               {item.label}
             </Label>
-            <Input id={item.id} name={item.id} className="w-full bg-background" />
+            <Input
+              id={item.id}
+              name={item.id}
+              className="w-full bg-background"
+              defaultValue={String(initialValues[item.id] ?? '')}
+            />
           </div>
         ))}
       </div>
@@ -53,7 +69,23 @@ export function ExpensesSection() {
       <ul className="space-y-3">
         {EXPENSE_CHECKBOX_ITEMS.map((item) => (
           <li key={item.id} className="flex items-start gap-3">
-            <Checkbox id={item.id} name={item.id} className="mt-0.5" />
+            <Checkbox
+              id={item.id}
+              className="mt-0.5"
+              checked={checks[item.id] ?? false}
+              onCheckedChange={(checked) =>
+                setChecks((prev) => ({ ...prev, [item.id]: checked === true }))
+              }
+            />
+            <input
+              type="checkbox"
+              name={item.id}
+              checked={checks[item.id] ?? false}
+              readOnly
+              className="hidden"
+              tabIndex={-1}
+              aria-hidden
+            />
             <Label htmlFor={item.id} className="cursor-pointer text-sm font-normal leading-snug text-foreground">
               {item.label}
             </Label>
@@ -65,7 +97,12 @@ export function ExpensesSection() {
         <Label htmlFor="exp-vehicle-loan" className="text-sm font-normal leading-snug sm:min-w-0 sm:flex-1">
           Did you purchase a personal-use vehicle in 2024 and pay interest on a passenger vehicle loan during the year?
         </Label>
-        <select id="exp-vehicle-loan" name="exp-vehicle-loan" defaultValue="no" className={selectClassName}>
+        <select
+          id="exp-vehicle-loan"
+          name="exp-vehicle-loan"
+          defaultValue={String(initialValues['exp-vehicle-loan'] ?? 'no')}
+          className={selectClassName}
+        >
           <option value="no">No</option>
           <option value="yes">Yes</option>
         </select>
@@ -78,14 +115,10 @@ export function ExpensesSection() {
           name="exp-comments"
           placeholder=""
           className="min-h-[120px] w-full resize-y bg-background"
+          defaultValue={String(initialValues['exp-comments'] ?? '')}
         />
       </div>
 
-      <div className="flex justify-start pt-1">
-        <Button type="button" variant="default" className={ticketCaseBlackCtaButtonClassName}>
-          Save
-        </Button>
-      </div>
     </div>
   );
 }

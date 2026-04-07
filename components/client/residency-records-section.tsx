@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useMemo, useState } from 'react';
-import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -62,6 +62,7 @@ export type ResidencyRecordsSectionProps = {
   emptyStateActionLabel: string;
   /** Prefix for form field `name` and `id` attributes (e.g. tp-res, sp-res) */
   fieldPrefix: string;
+  initialRows?: unknown[];
 };
 
 export function ResidencyRecordsSection({
@@ -70,10 +71,15 @@ export function ResidencyRecordsSection({
   modalTitle,
   emptyStateActionLabel,
   fieldPrefix,
+  initialRows = [],
 }: ResidencyRecordsSectionProps) {
   const formId = useId();
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<ResidencyRecordRow[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [rows, setRows] = useState<ResidencyRecordRow[]>(() => {
+    return (initialRows as ResidencyRecordRow[]).filter((row) => row && typeof row === 'object');
+  });
+  const editingRow = rows.find((row) => row.id === editingId);
 
   const stateOptionMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -103,20 +109,21 @@ export function ResidencyRecordsSection({
     const comments = String(fd.get(f.comments) ?? '').trim();
     if (!country || !stateCode || !city || !zipcode || !fromDate || !toDate) return;
 
-    setRows((prev) => [
-      ...prev,
-      {
-        id: `${fieldPrefix}-${Date.now()}`,
-        country,
-        stateCode,
-        city,
-        zipcode,
-        fromDate,
-        toDate,
-        comments,
-      },
-    ]);
+    const nextRow: ResidencyRecordRow = {
+      id: editingId ?? `${fieldPrefix}-${Date.now()}`,
+      country,
+      stateCode,
+      city,
+      zipcode,
+      fromDate,
+      toDate,
+      comments,
+    };
+    setRows((prev) =>
+      editingId ? prev.map((row) => (row.id === editingId ? nextRow : row)) : [...prev, nextRow],
+    );
     e.currentTarget.reset();
+    setEditingId(null);
     setOpen(false);
   }
 
@@ -162,7 +169,17 @@ export function ResidencyRecordsSection({
                   <TableCell>{r.fromDate}</TableCell>
                   <TableCell>{r.toDate}</TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" variant="ghost" size="icon" className="size-8" aria-label="Edit">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      aria-label="Edit"
+                      onClick={() => {
+                        setEditingId(r.id);
+                        setOpen(true);
+                      }}
+                    >
                       <Pencil className="size-4" />
                     </Button>
                   </TableCell>
@@ -184,21 +201,23 @@ export function ResidencyRecordsSection({
           </TableBody>
         </Table>
       </div>
+      <input type="hidden" name="rows" value={JSON.stringify(rows)} readOnly />
 
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
-          Next Page
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setEditingId(null);
+        }}
+      >
         <DialogContent
           showCloseButton={false}
           className="max-h-[min(90vh,720px)] gap-0 overflow-hidden p-0 sm:max-w-lg"
         >
           <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
-            <DialogTitle className="text-base font-semibold text-foreground">{modalTitle}</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              {editingId ? `Edit ${modalTitle.replace(/^Add\s+/i, '')}` : modalTitle}
+            </DialogTitle>
             <DialogClose asChild>
               <button
                 type="button"
@@ -211,6 +230,7 @@ export function ResidencyRecordsSection({
           </div>
 
           <form
+            key={editingId ?? 'new'}
             id={formId}
             onSubmit={handleSubmit}
             className="max-h-[calc(min(90vh,720px)-52px)] overflow-y-auto p-4 sm:p-6"
@@ -220,14 +240,20 @@ export function ResidencyRecordsSection({
                 <Label htmlFor={f.country}>
                   <Req>Country</Req>
                 </Label>
-                <Input id={f.country} name={f.country} className="bg-background" required />
+                <Input id={f.country} name={f.country} className="bg-background" required defaultValue={editingRow?.country ?? ''} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor={f.state}>
                   <Req>State</Req>
                 </Label>
-                <select id={f.state} name={f.state} className={selectClassName} required defaultValue="">
+                <select
+                  id={f.state}
+                  name={f.state}
+                  className={selectClassName}
+                  required
+                  defaultValue={editingRow?.stateCode || ''}
+                >
                   {US_STATE_OPTIONS.map((o) => (
                     <option key={o.value || 'placeholder'} value={o.value}>
                       {o.label}
@@ -240,14 +266,14 @@ export function ResidencyRecordsSection({
                 <Label htmlFor={f.city}>
                   <Req>City</Req>
                 </Label>
-                <Input id={f.city} name={f.city} className="bg-background" required />
+                <Input id={f.city} name={f.city} className="bg-background" required defaultValue={editingRow?.city ?? ''} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor={f.zip}>
                   <Req>Zipcode</Req>
                 </Label>
-                <Input id={f.zip} name={f.zip} autoComplete="postal-code" className="bg-background" required />
+                <Input id={f.zip} name={f.zip} autoComplete="postal-code" className="bg-background" required defaultValue={editingRow?.zipcode ?? ''} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -255,24 +281,24 @@ export function ResidencyRecordsSection({
                   <Label htmlFor={f.from}>
                     <Req>From date</Req>
                   </Label>
-                  <DatePicker id={f.from} name={f.from} className="bg-background" required />
+                  <DatePicker id={f.from} name={f.from} className="bg-background" required defaultValue={editingRow?.fromDate ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor={f.to}>
                     <Req>To date</Req>
                   </Label>
-                  <DatePicker id={f.to} name={f.to} className="bg-background" required />
+                  <DatePicker id={f.to} name={f.to} className="bg-background" required defaultValue={editingRow?.toDate ?? ''} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor={f.comments}>Comments</Label>
-                <Textarea id={f.comments} name={f.comments} className="min-h-[100px] resize-y bg-background" />
+                <Textarea id={f.comments} name={f.comments} className="min-h-[100px] resize-y bg-background" defaultValue={editingRow?.comments ?? ''} />
               </div>
 
               <div className="flex justify-center border-t border-border pt-4">
                 <Button type="submit" variant="default" className={cn('min-w-[120px]', ticketCaseBlackCtaButtonClassName)}>
-                  Save
+                  {editingId ? 'Update' : 'Save'}
                 </Button>
               </div>
             </div>

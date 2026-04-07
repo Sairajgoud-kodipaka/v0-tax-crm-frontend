@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -41,35 +41,73 @@ const selectClassName =
 type RentalPropertyRow = {
   id: string;
   propertyType: string;
-  address: string;
+  incomeReceived: string;
+  address1: string;
+  address2: string;
   city: string;
+  state: string;
+  zipcode: string;
+  country: string;
+  monthsRented: string;
+  monthsUsed: string;
+  ownedBy: string;
+  cost: string;
+  purchaseDate: string;
+  expenseClaim: string;
+  comments: string;
 };
 
-export function RentalIncomeSection() {
+export function RentalIncomeSection({ initialRows = [] }: { initialRows?: unknown[] }) {
   const formId = useId();
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<RentalPropertyRow[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [rows, setRows] = useState<RentalPropertyRow[]>(() => {
+    return (initialRows as RentalPropertyRow[]).filter((row) => row && typeof row === 'object');
+  });
+  const editingRow = rows.find((row) => row.id === editingId);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const propertyType = String(fd.get('rent-property-type') ?? '').trim();
+    const incomeReceived = String(fd.get('rent-income-received') ?? '').trim();
     const address1 = String(fd.get('rent-address-1') ?? '').trim();
     const address2 = String(fd.get('rent-address-2') ?? '').trim();
     const city = String(fd.get('rent-city') ?? '').trim();
+    const state = String(fd.get('rent-state') ?? '').trim();
+    const zipcode = String(fd.get('rent-zipcode') ?? '').trim();
+    const country = String(fd.get('rent-country') ?? '').trim();
+    const monthsRented = String(fd.get('rent-months-rented') ?? '').trim();
+    const monthsUsed = String(fd.get('rent-months-used') ?? '').trim();
+    const ownedBy = String(fd.get('rent-owned-by') ?? '').trim();
+    const cost = String(fd.get('rent-cost') ?? '').trim();
+    const purchaseDate = String(fd.get('rent-purchase-date') ?? '').trim();
+    const expenseClaim = String(fd.get('rent-expense-claim') ?? '').trim();
+    const comments = String(fd.get('rent-comments') ?? '').trim();
     if (!propertyType || !address1 || !city) return;
-
-    const address = [address1, address2].filter(Boolean).join(', ');
-    setRows((prev) => [
-      ...prev,
-      {
-        id: `rent-${Date.now()}`,
-        propertyType,
-        address,
-        city,
-      },
-    ]);
+    const nextRow: RentalPropertyRow = {
+      id: editingId ?? `rent-${Date.now()}`,
+      propertyType,
+      incomeReceived,
+      address1,
+      address2,
+      city,
+      state,
+      zipcode,
+      country,
+      monthsRented,
+      monthsUsed,
+      ownedBy,
+      cost,
+      purchaseDate,
+      expenseClaim,
+      comments,
+    };
+    setRows((prev) =>
+      editingId ? prev.map((row) => (row.id === editingId ? nextRow : row)) : [...prev, nextRow],
+    );
     e.currentTarget.reset();
+    setEditingId(null);
     setOpen(false);
   }
 
@@ -110,10 +148,20 @@ export function RentalIncomeSection() {
               rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.propertyType}</TableCell>
-                  <TableCell>{r.address}</TableCell>
+                  <TableCell>{[r.address1, r.address2].filter(Boolean).join(', ')}</TableCell>
                   <TableCell>{r.city}</TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" variant="ghost" size="icon" className="size-8" aria-label="Edit">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      aria-label="Edit"
+                      onClick={() => {
+                        setEditingId(r.id);
+                        setOpen(true);
+                      }}
+                    >
                       <Pencil className="size-4" />
                     </Button>
                   </TableCell>
@@ -135,21 +183,23 @@ export function RentalIncomeSection() {
           </TableBody>
         </Table>
       </div>
+      <input type="hidden" name="rows" value={JSON.stringify(rows)} readOnly />
 
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
-          Next Page
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
-
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setEditingId(null);
+        }}
+      >
         <DialogContent
           showCloseButton={false}
           className="max-h-[min(90vh,760px)] gap-0 overflow-hidden p-0 sm:max-w-2xl"
         >
           <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
-            <DialogTitle className="text-base font-semibold text-foreground">Add Rental Property</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              {editingId ? 'Edit Rental Property' : 'Add Rental Property'}
+            </DialogTitle>
             <DialogClose asChild>
               <button
                 type="button"
@@ -162,6 +212,7 @@ export function RentalIncomeSection() {
           </div>
 
           <form
+            key={editingId ?? 'new'}
             id={formId}
             onSubmit={handleSubmit}
             className="max-h-[calc(min(90vh,760px)-52px)] overflow-y-auto p-4 sm:p-6"
@@ -176,7 +227,7 @@ export function RentalIncomeSection() {
                     id="rent-property-type"
                     name="rent-property-type"
                     className={selectClassName}
-                    defaultValue="residencial"
+                    defaultValue={editingRow?.propertyType || 'residencial'}
                     required
                   >
                     <option value="residencial">Residencial</option>
@@ -186,40 +237,40 @@ export function RentalIncomeSection() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-income-received">Income received</Label>
-                  <Input id="rent-income-received" name="rent-income-received" className="bg-background" />
+                  <Input id="rent-income-received" name="rent-income-received" className="bg-background" defaultValue={editingRow?.incomeReceived ?? ''} />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="rent-address-1">Address line 1</Label>
-                  <Input id="rent-address-1" name="rent-address-1" className="bg-background" />
+                  <Input id="rent-address-1" name="rent-address-1" className="bg-background" defaultValue={editingRow?.address1 ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-address-2">Address line 2</Label>
-                  <Input id="rent-address-2" name="rent-address-2" className="bg-background" />
+                  <Input id="rent-address-2" name="rent-address-2" className="bg-background" defaultValue={editingRow?.address2 ?? ''} />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="rent-city">City</Label>
-                  <Input id="rent-city" name="rent-city" className="bg-background" />
+                  <Input id="rent-city" name="rent-city" className="bg-background" defaultValue={editingRow?.city ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-state">State</Label>
-                  <Input id="rent-state" name="rent-state" className="bg-background" />
+                  <Input id="rent-state" name="rent-state" className="bg-background" defaultValue={editingRow?.state ?? ''} />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="rent-zipcode">Zipcode</Label>
-                  <Input id="rent-zipcode" name="rent-zipcode" className="bg-background" />
+                  <Input id="rent-zipcode" name="rent-zipcode" className="bg-background" defaultValue={editingRow?.zipcode ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-country">Country</Label>
-                  <Input id="rent-country" name="rent-country" className="bg-background" />
+                  <Input id="rent-country" name="rent-country" className="bg-background" defaultValue={editingRow?.country ?? ''} />
                 </div>
               </div>
 
@@ -228,13 +279,13 @@ export function RentalIncomeSection() {
                   <Label htmlFor="rent-months-rented">
                     <Req>Months rented</Req>
                   </Label>
-                  <Input id="rent-months-rented" name="rent-months-rented" className="bg-background" required />
+                  <Input id="rent-months-rented" name="rent-months-rented" className="bg-background" required defaultValue={editingRow?.monthsRented ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-months-used">
                     <Req>Months used</Req>
                   </Label>
-                  <Input id="rent-months-used" name="rent-months-used" className="bg-background" required />
+                  <Input id="rent-months-used" name="rent-months-used" className="bg-background" required defaultValue={editingRow?.monthsUsed ?? ''} />
                 </div>
               </div>
 
@@ -243,17 +294,17 @@ export function RentalIncomeSection() {
                   <Label htmlFor="rent-owned-by">
                     <Req>Owned by</Req>
                   </Label>
-                  <Input id="rent-owned-by" name="rent-owned-by" className="bg-background" required />
+                  <Input id="rent-owned-by" name="rent-owned-by" className="bg-background" required defaultValue={editingRow?.ownedBy ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-cost">
                     <Req>Cost of property</Req>
                   </Label>
-                  <Input id="rent-cost" name="rent-cost" className="bg-background" required />
+                  <Input id="rent-cost" name="rent-cost" className="bg-background" required defaultValue={editingRow?.cost ?? ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-purchase-date">Date of purchase</Label>
-                  <DatePicker id="rent-purchase-date" name="rent-purchase-date" className="bg-background" />
+                  <DatePicker id="rent-purchase-date" name="rent-purchase-date" className="bg-background" defaultValue={editingRow?.purchaseDate ?? ''} />
                 </div>
               </div>
 
@@ -265,17 +316,18 @@ export function RentalIncomeSection() {
                   id="rent-expense-claim"
                   name="rent-expense-claim"
                   className="min-h-[70px] resize-y bg-background"
+                  defaultValue={editingRow?.expenseClaim ?? ''}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="rent-comments">Comments</Label>
-                <Textarea id="rent-comments" name="rent-comments" className="min-h-[90px] resize-y bg-background" />
+                <Textarea id="rent-comments" name="rent-comments" className="min-h-[90px] resize-y bg-background" defaultValue={editingRow?.comments ?? ''} />
               </div>
 
               <div className="flex justify-center border-t border-border pt-4">
                 <Button type="submit" variant="default" className={cn('min-w-[120px]', ticketCaseBlackCtaButtonClassName)}>
-                  Save
+                  {editingId ? 'Update' : 'Save'}
                 </Button>
               </div>
             </div>

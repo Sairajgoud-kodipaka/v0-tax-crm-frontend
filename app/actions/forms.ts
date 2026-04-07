@@ -3,7 +3,7 @@
 import { sendTicketMessageAction } from '@/app/actions/messages';
 import { updateTicketStageAction } from '@/app/actions/tickets';
 import { markInvoicePaidMvpAction } from '@/app/actions/payments';
-import { uploadTicketDocumentAction } from '@/app/actions/documents';
+import { deleteTicketDocumentAction, uploadTicketDocumentAction } from '@/app/actions/documents';
 import type { TicketStage } from '@/lib/types';
 import { STAGE_NAVIGATION } from '@/lib/constants';
 
@@ -45,4 +45,10 @@ export async function clientUploadDocumentFormAction(formData: FormData) {
   const ticketId = formData.get('ticketId') as string;
   if (!ticketId) throw new Error('Invalid');
   await uploadTicketDocumentAction(ticketId, formData, 'client_upload');
+}
+
+export async function clientDeleteDocumentFormAction(formData: FormData) {
+  const documentId = formData.get('documentId') as string;
+  if (!documentId) throw new Error('Invalid');
+  await deleteTicketDocumentAction(documentId);
 }
