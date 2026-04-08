@@ -1,10 +1,10 @@
 import 'server-only';
 
 import { STAGE_NAVIGATION } from '@/lib/constants';
-import { getServerSupabase, listTicketsAssignedToEmployee } from '@/lib/data/tickets-queries';
+import { getServerSupabase, listAllTicketsForStaff } from '@/lib/data/tickets-queries';
 
-export async function getEmployeeDashboardData(employeeId: string) {
-  const myTickets = await listTicketsAssignedToEmployee(employeeId);
+export async function getEmployeeDashboardData() {
+  const myTickets = await listAllTicketsForStaff();
   const inProgressCount = myTickets.filter((t) => t.status === 'in-progress').length;
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

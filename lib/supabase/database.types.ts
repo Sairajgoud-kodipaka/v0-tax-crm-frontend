@@ -9,6 +9,7 @@ export interface Database {
           role: 'admin' | 'employee' | 'client';
           full_name: string | null;
           email: string | null;
+          referred_by_employee_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -16,9 +17,11 @@ export interface Database {
           id: string;
           role?: 'admin' | 'employee' | 'client';
           full_name?: string | null;
+          referred_by_employee_id?: string | null;
         };
         Update: {
           full_name?: string | null;
+          referred_by_employee_id?: string | null;
         };
       };
       tickets: {

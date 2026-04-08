@@ -87,17 +87,13 @@ async function profileMapForIds(
 
 export async function listTicketsForStage(
   stage: TicketStage | null | undefined,
-  role: 'admin' | 'employee',
-  employeeUserId: string,
+  _role: 'admin' | 'employee',
+  _employeeUserId: string,
 ): Promise<Ticket[]> {
   const supabase = await getServerSupabase();
   const st = stage ?? DEFAULT_STAGE;
 
-  let q = supabase.from('tickets').select('*').eq('stage', st).order('updated_at', { ascending: false });
-
-  if (role === 'employee') {
-    q = q.eq('assigned_employee_id', employeeUserId);
-  }
+  const q = supabase.from('tickets').select('*').eq('stage', st).order('updated_at', { ascending: false });
 
   const { data: rowsRaw, error } = await q;
   const rows = (rowsRaw ?? []) as TicketRow[];
@@ -122,13 +118,10 @@ export async function listTicketsForStage(
   });
 }
 
-export async function listTicketsAssignedToEmployee(employeeId: string): Promise<Ticket[]> {
+/** All tickets visible to staff (employee queues are shared across the team). */
+export async function listAllTicketsForStaff(): Promise<Ticket[]> {
   const supabase = await getServerSupabase();
-  const { data: rowsRaw, error } = await supabase
-    .from('tickets')
-    .select('*')
-    .eq('assigned_employee_id', employeeId)
-    .order('updated_at', { ascending: false });
+  const { data: rowsRaw, error } = await supabase.from('tickets').select('*').order('updated_at', { ascending: false });
   const rows = (rowsRaw ?? []) as TicketRow[];
 
   if (error || !rows?.length) return [];
@@ -215,7 +208,7 @@ export async function getTicketDetailBundle(
 
   const allowed =
     role === 'admin' ||
-    (role === 'employee' && ticket.assigned_employee_id === userId) ||
+    role === 'employee' ||
     (role === 'client' && ticket.client_id === userId);
 
   if (!allowed) return null;

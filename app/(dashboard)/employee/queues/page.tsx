@@ -37,15 +37,15 @@ export default async function EmployeeQueuesPage({
         <h1 className="mb-2 text-3xl font-bold">{stageInfo.label}</h1>
         <p className="text-muted-foreground">{stageInfo.description}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} assigned to you in this
-          stage
+          Showing {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} in this stage (team
+          queue)
         </p>
       </div>
 
       <QueueTicketsTable
         tickets={filteredTickets}
         ticketBasePath="/employee/tickets"
-        emptyMessage="No tickets assigned to you in this stage yet."
+        emptyMessage="No tickets in this stage yet."
       />
     </div>
   );

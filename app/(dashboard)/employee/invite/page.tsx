@@ -35,8 +35,8 @@ export default function EmployeeInvitePage() {
             Invite a client
           </CardTitle>
           <CardDescription>
-            Generate a one-time signup link. When the client registers, a ticket is created in Pending Info and assigned
-            to you.
+            Generate a one-time signup link. When the client registers with this link, their account is linked to you.
+            New tickets they create are assigned to you by default; the whole team can still see and work every case.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

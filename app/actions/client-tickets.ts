@@ -29,10 +29,19 @@ export async function createClientTicketAction(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, message: 'Unauthorized' };
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, referred_by_employee_id')
+    .eq('id', user.id)
+    .maybeSingle();
   if (!profile || profile.role !== 'client') {
     return { ok: false, message: 'Only client users can create tickets from this page.' };
   }
+
+  const primaryEmployeeId =
+    profile.referred_by_employee_id && typeof profile.referred_by_employee_id === 'string'
+      ? profile.referred_by_employee_id
+      : null;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -51,6 +60,7 @@ export async function createClientTicketAction(
     .from('tickets')
     .insert({
       client_id: user.id,
+      assigned_employee_id: primaryEmployeeId,
       stage: 'pending-info',
       status: 'open',
       subject: `${filingType} - ${taxYear}`,

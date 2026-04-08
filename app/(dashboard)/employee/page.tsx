@@ -10,7 +10,7 @@ export default async function EmployeeDashboard() {
   const session = await getSessionUser();
   if (!session || session.role !== 'employee') return null;
 
-  const d = await getEmployeeDashboardData(session.id);
+  const d = await getEmployeeDashboardData();
 
   return (
     <div className="space-y-6">
@@ -18,11 +18,11 @@ export default async function EmployeeDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">My Tickets</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">All tickets</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">{d.myTickets.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Currently assigned</p>
+            <p className="text-xs text-muted-foreground mt-1">Team queue</p>
           </CardContent>
         </Card>
 
@@ -42,7 +42,7 @@ export default async function EmployeeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-accent">{d.completedThisMonth}</div>
-            <p className="text-xs text-muted-foreground mt-1">Your cases closed</p>
+            <p className="text-xs text-muted-foreground mt-1">Team cases closed</p>
           </CardContent>
         </Card>
       </div>
@@ -51,12 +51,12 @@ export default async function EmployeeDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>My Assigned Tickets</CardTitle>
-          <CardDescription>Cases assigned to you</CardDescription>
+          <CardTitle>Recent tickets</CardTitle>
+          <CardDescription>Latest activity across the team</CardDescription>
         </CardHeader>
         <CardContent>
           {d.myTickets.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No tickets assigned to you</p>
+            <p className="text-muted-foreground text-center py-8">No tickets yet</p>
           ) : (
             <div className="space-y-3">
               {d.myTickets.map((ticket) => (
@@ -89,7 +89,7 @@ export default async function EmployeeDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Workflow</CardTitle>
-          <CardDescription>Use the sidebar stages to filter your queue</CardDescription>
+          <CardDescription>Use the sidebar stages to filter the team queue</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">

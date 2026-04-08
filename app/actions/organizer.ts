@@ -14,11 +14,7 @@ export async function saveTaxOrganizerAction(ticketId: string, answers: Record<s
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
   const role = profile?.role;
 
-  const { data: ticket } = await supabase
-    .from('tickets')
-    .select('client_id, assigned_employee_id')
-    .eq('id', ticketId)
-    .single();
+  const { data: ticket } = await supabase.from('tickets').select('client_id').eq('id', ticketId).single();
   if (!ticket) throw new Error('Not found');
 
   let clientIdForRow = ticket.client_id as string;
@@ -26,9 +22,6 @@ export async function saveTaxOrganizerAction(ticketId: string, answers: Record<s
   if (role === 'client') {
     if (ticket.client_id !== user.id) throw new Error('Forbidden');
   } else if (role === 'admin' || role === 'employee') {
-    if (role === 'employee' && ticket.assigned_employee_id !== user.id) {
-      throw new Error('Forbidden');
-    }
     clientIdForRow = ticket.client_id as string;
   } else {
     throw new Error('Forbidden');

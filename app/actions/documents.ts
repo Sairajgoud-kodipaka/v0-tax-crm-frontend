@@ -31,9 +31,7 @@ export async function uploadTicketDocumentAction(
       throw new Error('Forbidden');
     }
   } else if (category === 'draft' || category === 'final' || category === 'other') {
-    if (role === 'employee') {
-      if (ticket.assigned_employee_id !== user.id) throw new Error('Forbidden');
-    } else if (role !== 'admin') {
+    if (role !== 'admin' && role !== 'employee') {
       throw new Error('Forbidden');
     }
   }
@@ -102,9 +100,7 @@ export async function deleteTicketDocumentAction(documentId: string) {
 
   if (role === 'client') {
     if (ticket.client_id !== user.id) throw new Error('Forbidden');
-  } else if (role === 'employee') {
-    if (ticket.assigned_employee_id !== user.id) throw new Error('Forbidden');
-  } else if (role !== 'admin') {
+  } else if (role !== 'admin' && role !== 'employee') {
     throw new Error('Forbidden');
   }
 
