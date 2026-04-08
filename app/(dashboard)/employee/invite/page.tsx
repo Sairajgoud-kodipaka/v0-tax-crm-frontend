@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Copy, Link2 } from 'lucide-react';
 
 export default function EmployeeInvitePage() {
-  const [url, setUrl] = useState('');
+  const [signupUrl, setSignupUrl] = useState('');
+  const [loginUrl, setLoginUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -17,8 +18,9 @@ export default function EmployeeInvitePage() {
     setError('');
     setLoading(true);
     try {
-      const { url: u } = await createInvitationLinkAction();
-      setUrl(u);
+      const { signupUrl: su, loginUrl: lu } = await createInvitationLinkAction();
+      setSignupUrl(su);
+      setLoginUrl(lu);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -35,8 +37,9 @@ export default function EmployeeInvitePage() {
             Invite a client
           </CardTitle>
           <CardDescription>
-            Generate a one-time signup link. When the client registers with this link, their account is linked to you.
-            New tickets they create are assigned to you by default; the whole team can still see and work every case.
+            Share the <strong>signup</strong> link with new clients. If they already have an account (for example after
+            confirming email), send them the <strong>sign-in</strong> link instead — it links them to you on login.
+            New tickets use you as the default assignee; the whole team can still see and work every case.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -44,19 +47,35 @@ export default function EmployeeInvitePage() {
           <Button type="button" onClick={generate} disabled={loading}>
             {loading ? 'Generating…' : 'Generate invitation link'}
           </Button>
-          {url && (
-            <div className="space-y-2">
-              <Label htmlFor="invite-url">Copy this link</Label>
-              <div className="flex gap-2">
-                <Input id="invite-url" readOnly value={url} className="font-mono text-xs" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => void navigator.clipboard.writeText(url)}
-                >
-                  <Copy className="size-4" />
-                </Button>
+          {signupUrl && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="invite-signup">New client — create account</Label>
+                <div className="flex gap-2">
+                  <Input id="invite-signup" readOnly value={signupUrl} className="font-mono text-xs" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => void navigator.clipboard.writeText(signupUrl)}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-login">Already registered — sign in (links invite)</Label>
+                <div className="flex gap-2">
+                  <Input id="invite-login" readOnly value={loginUrl} className="font-mono text-xs" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => void navigator.clipboard.writeText(loginUrl)}
+                  >
+                    <Copy className="size-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -28,8 +28,19 @@ export function TicketDetailDataRefresh({ ticketId }: { ticketId: string }) {
     };
 
     const filter = `ticket_id=eq.${ticketId}`;
+    const ticketFilter = `id=eq.${ticketId}`;
     const channel = supabase
       .channel(`ticket-detail-refresh:${ticketId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tickets', filter: ticketFilter },
+        scheduleRefresh,
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter },
+        scheduleRefresh,
+      )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'documents', filter },

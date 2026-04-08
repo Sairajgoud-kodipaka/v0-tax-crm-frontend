@@ -25,6 +25,7 @@ type DbTicket = {
   filing_type: string;
   tax_year: number;
   due_date: string | null;
+  client_info_submitted_at?: string | null;
   created_at: string;
   updated_at: string;
   client?: { full_name: string | null; id: string } | null;
@@ -71,6 +72,9 @@ export function mapTicketRow(
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     dueDate: row.due_date ? new Date(row.due_date) : undefined,
+    clientInfoSubmittedAt: row.client_info_submitted_at
+      ? new Date(row.client_info_submitted_at)
+      : undefined,
   };
 }
 
@@ -120,6 +124,7 @@ export function mapDocumentRow(
     size: row.size_bytes ?? 0,
     url: signedUrl,
     uploadedBy: row.uploader?.full_name ?? 'Unknown',
+    uploadedById: row.uploaded_by ?? '',
     uploadedAt: new Date(row.created_at),
   };
 }

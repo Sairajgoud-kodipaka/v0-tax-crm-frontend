@@ -18,6 +18,7 @@ export function hydrateTicket(raw: Record<string, unknown>): Ticket {
     filingType: String(t.filingType ?? ''),
     documents: (t.documents as Document[] | undefined)?.map((d) => ({
       ...d,
+      uploadedById: d.uploadedById ?? '',
       uploadedAt: new Date(d.uploadedAt as unknown as string),
     })) ?? [],
     messages: (t.messages as Message[] | undefined)?.map((m) => ({
@@ -50,5 +51,8 @@ export function hydrateTicket(raw: Record<string, unknown>): Ticket {
     dueDate: t.dueDate ? new Date(t.dueDate as unknown as string) : undefined,
     assignedToId: t.assignedToId,
     assignedToName: t.assignedToName,
+    clientInfoSubmittedAt: t.clientInfoSubmittedAt
+      ? new Date(t.clientInfoSubmittedAt as unknown as string)
+      : undefined,
   } as Ticket;
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('token')?.trim() ?? '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,6 +27,14 @@ export default function LoginPage() {
       const supabase = createClient();
       const { error: signErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signErr) throw signErr;
+
+      if (inviteToken) {
+        const { error: rpcErr } = await supabase.rpc('consume_invitation', { invite_token: inviteToken });
+        if (rpcErr) {
+          console.error('consume_invitation after login:', rpcErr.message);
+        }
+      }
+
       router.push('/');
       router.refresh();
     } catch (err) {
@@ -45,7 +55,14 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="space-y-2">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
-            <CardDescription>Sign in with your email and password</CardDescription>
+            <CardDescription>
+              Sign in with your email and password
+              {inviteToken ? (
+                <span className="mt-2 block text-primary">
+                  This link will connect your account to your preparer after you sign in.
+                </span>
+              ) : null}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {error && (
@@ -100,7 +117,10 @@ export default function LoginPage() {
 
             <p className="text-center text-sm text-muted-foreground">
               New client with an invite?{' '}
-              <Link href="/signup" className="text-primary font-medium hover:underline">
+              <Link
+                href={inviteToken ? `/signup?token=${encodeURIComponent(inviteToken)}` : '/signup'}
+                className="text-primary font-medium hover:underline"
+              >
                 Create account
               </Link>
             </p>
@@ -112,5 +132,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading…</div>}>
+      <LoginInner />
+    </Suspense>
   );
 }

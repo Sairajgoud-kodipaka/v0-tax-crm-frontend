@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { saveTaxOrganizerAction } from '@/app/actions/organizer';
 import {
   ORGANIZER_SECONDARY,
@@ -33,6 +33,7 @@ import {
 } from '@/lib/tax-organizer-taxpayer';
 import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
+import { ArrowRight } from 'lucide-react';
 
 function Req({ children }: { children: React.ReactNode }) {
   return (
@@ -53,6 +54,8 @@ export type TaxOrganizerPanelProps = {
   ticketId?: string;
   /** Loaded from `tax_organizer_snapshots.answers` (server) */
   initialAnswers?: Record<string, unknown>;
+  /** After Save & Next on the last section, parent can switch tabs (e.g. My Documents). */
+  onNavigatePastLastSection?: () => void;
 };
 
 function TaxpayerDetailsForm({ defaultValues }: { defaultValues: TaxpayerOrganizerSnapshot }) {
@@ -390,11 +393,15 @@ function serializeSectionControls(root: HTMLElement): Record<string, unknown> {
   return out;
 }
 
+const navTextClass =
+  'text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-35';
+
 export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
-  const { ticketId, initialAnswers = {} } = props;
+  const { ticketId, initialAnswers = {}, onNavigatePastLastSection } = props;
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => ({ ...initialAnswers }));
   const [secondary, setSecondary] = useState<OrganizerSecondaryId>('basic');
   const [tertiary, setTertiary] = useState<string>(() => defaultTertiaryFor('basic'));
+  const [organizerCompletePrompt, setOrganizerCompletePrompt] = useState(false);
   const [pending, startTransition] = useTransition();
   const sectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -437,13 +444,14 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
     return true;
   }
 
-  function goToNextSection() {
+  /** @returns true if moved to another organizer section */
+  function goToNextSection(): boolean {
     const currentTertiaryItems = ORGANIZER_TERTIARY[secondary];
     const tertiaryIndex = currentTertiaryItems.findIndex((item) => item.id === tertiary);
     const nextTertiary = currentTertiaryItems[tertiaryIndex + 1];
     if (nextTertiary) {
       setTertiary(nextTertiary.id);
-      return;
+      return true;
     }
 
     const secondaryIndex = ORGANIZER_SECONDARY.findIndex((item) => item.id === secondary);
@@ -451,8 +459,47 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
     if (nextSecondary) {
       setSecondary(nextSecondary.id);
       setTertiary(defaultTertiaryFor(nextSecondary.id));
+      return true;
+    }
+    return false;
+  }
+
+  function goToPreviousSection() {
+    const currentTertiaryItems = ORGANIZER_TERTIARY[secondary];
+    const tertiaryIndex = currentTertiaryItems.findIndex((item) => item.id === tertiary);
+    const prevTertiary = currentTertiaryItems[tertiaryIndex - 1];
+    if (prevTertiary) {
+      setTertiary(prevTertiary.id);
+      return;
+    }
+
+    const secondaryIndex = ORGANIZER_SECONDARY.findIndex((item) => item.id === secondary);
+    const prevSecondary = ORGANIZER_SECONDARY[secondaryIndex - 1];
+    if (prevSecondary) {
+      const items = ORGANIZER_TERTIARY[prevSecondary.id];
+      setSecondary(prevSecondary.id);
+      setTertiary(items[items.length - 1].id);
     }
   }
+
+  const firstSecondary = ORGANIZER_SECONDARY[0].id;
+  const firstTertiary = ORGANIZER_TERTIARY[firstSecondary][0].id;
+  const lastSecondary = ORGANIZER_SECONDARY[ORGANIZER_SECONDARY.length - 1].id;
+  const lastTertiaryItems = ORGANIZER_TERTIARY[lastSecondary];
+  const lastTertiary = lastTertiaryItems[lastTertiaryItems.length - 1].id;
+  const atFirstSection = secondary === firstSecondary && tertiary === firstTertiary;
+  const atLastOrganizerSection = secondary === lastSecondary && tertiary === lastTertiary;
+
+  useEffect(() => {
+    if (!atLastOrganizerSection) setOrganizerCompletePrompt(false);
+  }, [atLastOrganizerSection]);
+
+  function advanceNextOrLeaveOrganizer() {
+    goToNextSection();
+  }
+
+  const saveAndNextDisabled =
+    !ticketId || pending || (atLastOrganizerSection && !onNavigatePastLastSection);
 
   return (
     <div className="flex flex-col border-t border-border bg-muted/30">
@@ -506,6 +553,30 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
       {/* Form content */}
       <div className="bg-muted/30 p-4 sm:p-6">
         <div className="mx-auto max-w-5xl rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
+          {organizerCompletePrompt && onNavigatePastLastSection ? (
+            <div
+              className="mb-6 rounded-lg border border-primary/25 bg-primary/5 px-4 py-4 sm:px-5"
+              role="status"
+            >
+              <p className="text-sm font-medium text-foreground">
+                You&apos;ve completed the tax organizer.
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Next step: upload your documents on the My Documents tab.
+              </p>
+              <Button
+                type="button"
+                className={cn(ticketCaseBlackCtaButtonClassName, 'mt-4 gap-1.5')}
+                onClick={() => {
+                  setOrganizerCompletePrompt(false);
+                  onNavigatePastLastSection();
+                }}
+              >
+                Go to My Documents
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </div>
+          ) : null}
           <div ref={sectionRef}>
             <OrganizerFormBody
               secondary={secondary}
@@ -514,35 +585,61 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
               sectionAnswers={answers}
             />
           </div>
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
-            <Button
-              type="button"
-              variant="default"
-              className={ticketCaseBlackCtaButtonClassName}
-              disabled={!ticketId || pending}
-              onClick={() => {
-                startTransition(async () => {
-                  await saveCurrentSection();
-                });
-              }}
-            >
-              {pending ? 'Saving…' : 'Save'}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
-              disabled={!ticketId || pending}
-              onClick={() => {
-                startTransition(async () => {
-                  const saved = await saveCurrentSection();
-                  if (!saved) return;
-                  goToNextSection();
-                });
-              }}
-            >
-              {pending ? 'Saving…' : 'Save & Next'}
-            </Button>
+          <div className="mt-8 space-y-3 border-t border-border pt-6">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              <button
+                type="button"
+                className={navTextClass}
+                disabled={atFirstSection}
+                onClick={() => goToPreviousSection()}
+              >
+                Previous
+              </button>
+              <span className="text-[10px] text-muted-foreground/40" aria-hidden>
+                |
+              </span>
+              <button
+                type="button"
+                className={navTextClass}
+                disabled={atLastOrganizerSection}
+                onClick={() => advanceNextOrLeaveOrganizer()}
+              >
+                Next
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="default"
+                className={ticketCaseBlackCtaButtonClassName}
+                disabled={!ticketId || pending}
+                onClick={() => {
+                  startTransition(async () => {
+                    await saveCurrentSection();
+                  });
+                }}
+              >
+                {pending ? 'Saving…' : 'Save'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                disabled={saveAndNextDisabled}
+                onClick={() => {
+                  startTransition(async () => {
+                    const saved = await saveCurrentSection();
+                    if (!saved) return;
+                    const moved = goToNextSection();
+                    if (!moved && atLastOrganizerSection && onNavigatePastLastSection) {
+                      setOrganizerCompletePrompt(true);
+                    }
+                  });
+                }}
+              >
+                {pending ? 'Saving…' : 'Save & Next'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

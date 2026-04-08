@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
@@ -12,7 +13,9 @@ import {
   payInvoiceFormAction,
   clientUploadDocumentFormAction,
   clientDeleteDocumentFormAction,
+  clientDraftResponseFormAction,
 } from '@/app/actions/forms';
+import { ReplaceDocumentButton } from '@/components/documents/replace-document-button';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,8 +38,9 @@ import {
 import { cn } from '@/lib/utils';
 import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
-import type { UserRole } from '@/lib/types';
+import type { TicketStage, UserRole } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { submitClientInformationAction } from '@/app/actions/tickets';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -50,6 +54,31 @@ function ticketTitleLine(ticket: ReturnType<typeof hydrateTicket>): string {
 
 function ticketHeaderTitle(ref: string, ticket: ReturnType<typeof hydrateTicket>): string {
   return `Ticket #${ref} - ${ticketTitleLine(ticket)}`;
+}
+
+function clientStageStatusBannerText(stage: TicketStage): string {
+  switch (stage) {
+    case 'pending-info':
+      return 'Please complete your tax organizer and upload your documents to get started.';
+    case 'under-prep':
+      return 'Your preparer is working on your return. We will notify you when the draft is ready.';
+    case 'draft-sent':
+      return 'Your draft return is ready. Please review and approve.';
+    case 'awaiting-approval':
+      return 'Waiting for your approval on the draft.';
+    case 'payment-received':
+      return 'Payment received. We will send your signing form shortly.';
+    case '8879-sent':
+      return 'Please sign and return Form 8879 to authorize filing.';
+    case '8879-received':
+      return 'Signed form received. Your return is being filed.';
+    case 'filing-completed':
+      return 'Your return has been filed. Download your copy under Final Documents.';
+    case 'closed':
+      return 'This case is closed. All documents are available below.';
+    default:
+      return '';
+  }
 }
 
 /** Pass JSON-serializable ticket from a Server Component (dates as ISO strings). */
@@ -74,6 +103,7 @@ export function ClientCaseTabs({
     ['invoices', 'Invoices'],
     ['final', 'Final Documents'],
   ] as const;
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
@@ -108,6 +138,7 @@ export function ClientCaseTabs({
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
   const [selectedUploadPreviewUrl, setSelectedUploadPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [submittingInfo, startSubmitInfo] = useTransition();
   const openLinkOrNotify = (url: string | undefined, emptyMessage: string) => {
     if (!url) {
       toast({ title: emptyMessage });
@@ -147,6 +178,14 @@ export function ClientCaseTabs({
           </span>
         </div>
       </div>
+
+      {viewerRole === 'client' ? (
+        <div className="border-b border-border bg-muted/35 px-4 py-3 sm:px-6">
+          <p className="text-sm leading-relaxed text-foreground">
+            {clientStageStatusBannerText(ticket.stage)}
+          </p>
+        </div>
+      ) : null}
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as (typeof caseTabs)[number][0])} className="gap-0">
         <TabsList className={ticketCasePrimaryTabsListClassName}>
@@ -223,11 +262,58 @@ export function ClientCaseTabs({
             key={ticket.id}
             ticketId={ticket.id}
             initialAnswers={organizerAnswers}
+            onNavigatePastLastSection={() => setActiveTab('documents')}
           />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-0 p-4 sm:p-6">
           <div className="space-y-4">
+            {viewerRole === 'client' ? (
+              <div className="rounded-lg border border-border bg-muted/20 p-4 sm:p-5">
+                <p className="text-sm font-medium text-foreground">What to upload</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Upload whatever applies to you — use clear file names when possible.
+                </p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Income documents
+                    </p>
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-foreground">
+                      <li>W-2 (one per employer)</li>
+                      <li>1099-NEC (freelance / contract)</li>
+                      <li>1099-INT (bank interest)</li>
+                      <li>1099-DIV (dividends)</li>
+                      <li>1099-B (stocks / crypto sold)</li>
+                      <li>1099-R (retirement withdrawals)</li>
+                      <li>SSA-1099 (Social Security)</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Deduction documents
+                    </p>
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-foreground">
+                      <li>Mortgage interest (Form 1098)</li>
+                      <li>Property tax receipts</li>
+                      <li>Charitable donation receipts</li>
+                      <li>Childcare receipts + provider EIN or SSN</li>
+                      <li>Student loan interest (1098-E)</li>
+                      <li>Medical expense receipts</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Often required
+                    </p>
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-foreground">
+                      <li>Last year&apos;s tax return (if available)</li>
+                      <li>Photo ID</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">
                 My Uploaded Documents
@@ -237,7 +323,7 @@ export function ClientCaseTabs({
                   <TableRow>
                     <TableHead>File</TableHead>
                     <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
-                    <TableHead className="w-[100px] text-right"> </TableHead>
+                    <TableHead className="min-w-[180px] text-right"> </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -259,12 +345,15 @@ export function ClientCaseTabs({
                           })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex flex-wrap justify-end gap-2">
                             <Button variant="outline" size="sm" asChild>
                               <Link href={doc.url} target="_blank" rel="noreferrer">
                                 View
                               </Link>
                             </Button>
+                            {doc.uploadedById === viewerUserId ? (
+                              <ReplaceDocumentButton documentId={doc.id} />
+                            ) : null}
                             <form action={clientDeleteDocumentFormAction}>
                               <input type="hidden" name="documentId" value={doc.id} />
                               <Button type="submit" variant="ghost" size="icon" aria-label="Delete document">
@@ -282,7 +371,6 @@ export function ClientCaseTabs({
             <form
               ref={uploadFormRef}
               action={clientUploadDocumentFormAction}
-              encType="multipart/form-data"
               className="space-y-3"
             >
               <input type="hidden" name="ticketId" value={ticket.id} />
@@ -334,11 +422,100 @@ export function ClientCaseTabs({
                 {uploading ? <span className="text-xs text-muted-foreground">Uploading...</span> : null}
               </div>
             </form>
+
+            {viewerRole === 'client' && ticket.stage === 'pending-info' ? (
+              <div className="rounded-lg border border-border p-4 sm:p-5">
+                {ticket.clientInfoSubmittedAt ? (
+                  <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-3 text-sm text-foreground">
+                    <p className="font-medium">Your information has been submitted.</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Your preparer will review it and be in touch. Submitted on{' '}
+                      {ticket.clientInfoSubmittedAt.toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                      .
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      When your organizer is complete and you have uploaded your documents, submit here so your
+                      preparer knows you are ready for review.
+                    </p>
+                    <Button
+                      type="button"
+                      className={ticketCaseBlackCtaButtonClassName}
+                      disabled={submittingInfo || ticket.documents.length === 0}
+                      onClick={() => {
+                        startSubmitInfo(async () => {
+                          try {
+                            await submitClientInformationAction(ticket.id);
+                            toast({
+                              title: 'Information submitted',
+                              description: 'Your preparer will review it and be in touch.',
+                            });
+                            router.refresh();
+                          } catch (err) {
+                            toast({
+                              variant: 'destructive',
+                              title: 'Could not submit',
+                              description: err instanceof Error ? err.message : 'Please try again.',
+                            });
+                          }
+                        });
+                      }}
+                    >
+                      {submittingInfo ? 'Submitting…' : 'Submit My Information'}
+                    </Button>
+                    {ticket.documents.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Upload at least one document to enable submit.</p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </TabsContent>
 
         <TabsContent value="drafts" className="mt-0 p-4 sm:p-6">
           <div className="space-y-4">
+            {ticket.stage === 'draft-sent' && (ticket.drafts?.length ?? 0) > 0 ? (
+              <div className="rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
+                <p className="text-sm font-medium text-foreground">Review your draft return</p>
+                <p className="text-sm text-muted-foreground">
+                  Approve to continue, or request changes and describe what you would like revised. Your
+                  preparer will be notified in Messages.
+                </p>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                  <form action={clientDraftResponseFormAction} className="min-w-0 flex-1 space-y-2">
+                    <input type="hidden" name="ticketId" value={ticket.id} />
+                    <input type="hidden" name="action" value="approve" />
+                    <Textarea
+                      name="body"
+                      placeholder="Optional note to your preparer"
+                      className="min-h-[72px] resize-none bg-background"
+                    />
+                    <Button type="submit" className={ticketCaseBlackCtaButtonClassName}>
+                      Approve draft
+                    </Button>
+                  </form>
+                  <form action={clientDraftResponseFormAction} className="min-w-0 flex-1 space-y-2">
+                    <input type="hidden" name="ticketId" value={ticket.id} />
+                    <input type="hidden" name="action" value="request_changes" />
+                    <Textarea
+                      name="body"
+                      placeholder="Describe the changes you need…"
+                      className="min-h-[88px] resize-none bg-background"
+                      required
+                    />
+                    <Button type="submit" variant="outline">
+                      Request changes
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">
                 Tax Return Drafts

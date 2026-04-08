@@ -64,7 +64,7 @@ function SignupInner() {
       } = await supabase.auth.getSession();
       if (!session) {
         setError(
-          'Account created. If email confirmation is enabled in Supabase, confirm your email then sign in and open your invite link again, or disable confirmation for development.',
+          'Account created. If email confirmation is required, confirm your email, then use the sign-in invitation link from your preparer (the one that ends with /login?token=…) so your account links to them. Or disable email confirmation in Supabase for development.',
         );
         return;
       }

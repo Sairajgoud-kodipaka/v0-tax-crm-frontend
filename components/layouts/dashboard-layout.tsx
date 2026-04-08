@@ -14,6 +14,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  Contact,
   CreditCard,
   FileEdit,
   FileSignature,
@@ -37,6 +38,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import type { SessionUser } from '@/lib/session-user';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Button } from '@/components/ui/button';
 import { TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -67,6 +69,7 @@ const STAGES: { id: string; label: string; icon: LucideIcon }[] = [
 const ADMIN_ROUTE_ICONS: Record<string, LucideIcon> = {
   grid: LayoutDashboard,
   list: ListTodo,
+  contact: Contact,
   users: Users,
   'bar-chart': BarChart3,
   log: ScrollText,
@@ -80,6 +83,7 @@ const ADMIN_ROUTE_ICONS: Record<string, LucideIcon> = {
 const EMPLOYEE_ROUTE_ICONS: Record<string, LucideIcon> = {
   grid: LayoutDashboard,
   list: ListTodo,
+  contact: Contact,
   users: UserPlus,
   'bar-chart': BarChart3,
   log: ScrollText,
@@ -402,6 +406,9 @@ export function DashboardLayout({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <NotificationBell userId={user.id} role={user.role} />
+          </header>
           <main className="min-h-0 flex-1 overflow-auto p-6 text-foreground">{children}</main>
         </div>
       </div>

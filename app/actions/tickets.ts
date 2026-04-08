@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
+import { sendTicketMessageAction } from '@/app/actions/messages';
 import type { TicketStage } from '@/lib/types';
 
 export async function updateTicketStageAction(ticketId: string, toStage: TicketStage, note?: string) {
@@ -18,6 +19,41 @@ export async function updateTicketStageAction(ticketId: string, toStage: TicketS
 
   if (error) throw new Error(error.message);
 
+  revalidatePath('/admin/tickets/' + ticketId);
+  revalidatePath('/employee/tickets/' + ticketId);
+  revalidatePath('/client/cases/' + ticketId);
+  revalidatePath('/admin/queues');
+  revalidatePath('/employee/queues');
+}
+
+/** From Draft Sent: client approves (→ awaiting-approval) or requests changes (→ under-prep). Optional message on the ticket thread. */
+export async function clientDraftResponseAction(
+  ticketId: string,
+  action: 'approve' | 'request_changes',
+  options?: { threadMessage?: string },
+) {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const trimmed = options?.threadMessage?.trim();
+  if (action === 'request_changes' && !trimmed) {
+    throw new Error('Please describe the changes you need');
+  }
+
+  const { error } = await supabase.rpc('client_draft_response', {
+    p_ticket_id: ticketId,
+    p_action: action,
+  });
+  if (error) throw new Error(error.message);
+
+  if (trimmed) {
+    await sendTicketMessageAction(ticketId, trimmed, { isInternal: false });
+  }
+
+  revalidatePath('/client/cases/' + ticketId);
   revalidatePath('/admin/tickets/' + ticketId);
   revalidatePath('/employee/tickets/' + ticketId);
   revalidatePath('/admin/queues');
@@ -45,4 +81,22 @@ export async function deleteTicketByAdminAction(ticketId: string) {
 
   revalidatePath('/admin');
   revalidatePath('/admin/queues');
+}
+
+/** Client: mark organizer + documents submitted (pending-info only); posts a message for staff. */
+export async function submitClientInformationAction(ticketId: string) {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase.rpc('submit_client_information', {
+    p_ticket_id: ticketId,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/client/cases/' + ticketId);
+  revalidatePath('/admin/tickets/' + ticketId);
+  revalidatePath('/employee/tickets/' + ticketId);
 }

@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 
-export async function createInvitationLinkAction(): Promise<{ url: string; token: string }> {
+export async function createInvitationLinkAction(): Promise<{
+  signupUrl: string;
+  loginUrl: string;
+  token: string;
+}> {
   const supabase = createClient(await cookies());
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
@@ -31,6 +35,10 @@ export async function createInvitationLinkAction(): Promise<{ url: string; token
     process.env.NEXT_PUBLIC_APP_URL ??
     (typeof process.env.VERCEL_URL === 'string' ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
+  const root = base.replace(/\/$/, '');
+  const signupUrl = `${root}/signup?token=${encodeURIComponent(token)}`;
+  const loginUrl = `${root}/login?token=${encodeURIComponent(token)}`;
+
   revalidatePath('/employee');
-  return { token, url: `${base.replace(/\/$/, '')}/signup?token=${encodeURIComponent(token)}` };
+  return { token, signupUrl, loginUrl };
 }

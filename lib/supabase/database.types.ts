@@ -38,6 +38,7 @@ export interface Database {
           filing_type: string;
           tax_year: number;
           due_date: string | null;
+          client_info_submitted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -125,6 +126,67 @@ export interface Database {
           answers: Json;
           updated_at: string;
         };
+      };
+      notifications: {
+        Row: {
+          id: string;
+          recipient_id: string;
+          ticket_id: string | null;
+          type: string;
+          title: string;
+          body: string | null;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recipient_id: string;
+          ticket_id?: string | null;
+          type?: string;
+          title: string;
+          body?: string | null;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          is_read?: boolean;
+        };
+      };
+      clients: {
+        Row: {
+          profile_id: string;
+          assigned_employee_id: string | null;
+          notes: string | null;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          assigned_employee_id?: string | null;
+          notes?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_employee_id?: string | null;
+          notes?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+      };
+    };
+    Functions: {
+      create_ticket_notification: {
+        Args: {
+          p_recipient_id: string;
+          p_ticket_id: string;
+          p_type: string;
+          p_title: string;
+          p_body: string;
+        };
+        Returns: null;
       };
     };
   };

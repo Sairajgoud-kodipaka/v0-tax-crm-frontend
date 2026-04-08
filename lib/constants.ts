@@ -120,6 +120,7 @@ export const STAGE_NAVIGATION = [
 
 export const ADMIN_ROUTES = [
   { href: '/admin', label: 'Dashboard', icon: 'grid' },
+  { href: '/admin/clients', label: 'Clients', icon: 'contact' },
   { href: '/admin/employees', label: 'Employees', icon: 'users' },
   { href: '/admin/reports', label: 'Reports', icon: 'bar-chart' },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: 'log' },
@@ -128,6 +129,7 @@ export const ADMIN_ROUTES = [
 
 export const EMPLOYEE_ROUTES = [
   { href: '/employee', label: 'Dashboard', icon: 'grid' },
+  { href: '/employee/clients', label: 'Clients', icon: 'contact' },
   { href: '/employee/invite', label: 'Invite Client', icon: 'users' },
   { href: '/employee/messages', label: 'Messages', icon: 'mail' },
 ];

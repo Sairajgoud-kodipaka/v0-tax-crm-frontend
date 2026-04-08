@@ -52,6 +52,8 @@ export interface Ticket {
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date;
+  /** Set when the client uses "Submit my information" during pending-info. */
+  clientInfoSubmittedAt?: Date;
 }
 
 export interface TicketHistoryEntry {
@@ -71,7 +73,10 @@ export interface Document {
   type: string;
   size: number;
   url: string;
+  /** Display name of uploader */
   uploadedBy: string;
+  /** Profile id of uploader (for replace/delete permission checks) */
+  uploadedById: string;
   uploadedAt: Date;
 }
 

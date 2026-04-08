@@ -12,6 +12,7 @@ import {
   staffUploadInvoiceFileFormAction,
   staffUploadFinalPackageFormAction,
 } from '@/app/actions/forms';
+import { ReplaceDocumentButton } from '@/components/documents/replace-document-button';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -245,7 +246,12 @@ export function StaffTicketCaseTabs({
         </TabsContent>
 
         <TabsContent value="organizer" className="mt-0 border-0 p-0">
-          <TaxOrganizerPanel key={ticket.id} ticketId={ticket.id} initialAnswers={organizerAnswers} />
+          <TaxOrganizerPanel
+            key={ticket.id}
+            ticketId={ticket.id}
+            initialAnswers={organizerAnswers}
+            onNavigatePastLastSection={() => setActiveTab('documents')}
+          />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-0 p-3 sm:p-6">
@@ -258,7 +264,7 @@ export function StaffTicketCaseTabs({
                   <TableRow>
                     <TableHead>File</TableHead>
                     <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
-                    <TableHead className="w-[100px] text-right"> </TableHead>
+                    <TableHead className="min-w-[200px] text-right"> </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -280,11 +286,14 @@ export function StaffTicketCaseTabs({
                           })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={doc.url} target="_blank" rel="noreferrer">
-                              View
-                            </Link>
-                          </Button>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={doc.url} target="_blank" rel="noreferrer">
+                                View
+                              </Link>
+                            </Button>
+                            {viewerIsStaff ? <ReplaceDocumentButton documentId={doc.id} /> : null}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -309,7 +318,7 @@ export function StaffTicketCaseTabs({
                   <TableRow>
                     <TableHead>File</TableHead>
                     <TableHead className="hidden sm:table-cell">Shared</TableHead>
-                    <TableHead className="w-[120px] text-right"> </TableHead>
+                    <TableHead className="min-w-[220px] text-right"> </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -331,22 +340,25 @@ export function StaffTicketCaseTabs({
                         })}
                       </TableCell>
                       <TableCell className="text-right">
-                        {d.url ? (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={d.url} target="_blank" rel="noreferrer">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {viewerIsStaff ? <ReplaceDocumentButton documentId={d.id} /> : null}
+                          {d.url ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={d.url} target="_blank" rel="noreferrer">
+                                Download
+                              </a>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={() => openLinkOrNotify(d.url, 'Draft not available yet.')}
+                            >
                               Download
-                            </a>
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            type="button"
-                            onClick={() => openLinkOrNotify(d.url, 'Draft not available yet.')}
-                          >
-                            Download
-                          </Button>
-                        )}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -357,7 +369,6 @@ export function StaffTicketCaseTabs({
             <form
               ref={draftUploadFormRef}
               action={staffUploadDraftFormAction}
-              encType="multipart/form-data"
               className="space-y-2"
             >
               <input type="hidden" name="ticketId" value={ticket.id} />
@@ -458,7 +469,7 @@ export function StaffTicketCaseTabs({
                   <TableRow>
                     <TableHead>File</TableHead>
                     <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
-                    <TableHead className="w-[120px] text-right"> </TableHead>
+                    <TableHead className="min-w-[220px] text-right"> </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -476,17 +487,20 @@ export function StaffTicketCaseTabs({
                         {f.sharedAt.toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        {f.url ? (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={f.url} target="_blank" rel="noreferrer">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {viewerIsStaff ? <ReplaceDocumentButton documentId={f.id} /> : null}
+                          {f.url ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={f.url} target="_blank" rel="noreferrer">
+                                Download
+                              </a>
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" type="button" onClick={() => openLinkOrNotify(f.url, 'Invoice file not available yet.')}>
                               Download
-                            </a>
-                          </Button>
-                        ) : (
-                          <Button variant="outline" size="sm" type="button" onClick={() => openLinkOrNotify(f.url, 'Invoice file not available yet.')}>
-                            Download
-                          </Button>
-                        )}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -497,7 +511,6 @@ export function StaffTicketCaseTabs({
             <form
               ref={invoiceUploadFormRef}
               action={staffUploadInvoiceFileFormAction}
-              encType="multipart/form-data"
               className="space-y-2"
             >
               <input type="hidden" name="ticketId" value={ticket.id} />
@@ -538,7 +551,7 @@ export function StaffTicketCaseTabs({
                   <TableRow>
                     <TableHead>Document</TableHead>
                     <TableHead className="hidden sm:table-cell">Available</TableHead>
-                    <TableHead className="w-[120px] text-right"> </TableHead>
+                    <TableHead className="min-w-[220px] text-right"> </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -562,22 +575,25 @@ export function StaffTicketCaseTabs({
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right">
-                        {f.url ? (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={f.url} target="_blank" rel="noreferrer">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {viewerIsStaff ? <ReplaceDocumentButton documentId={f.id} /> : null}
+                          {f.url ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={f.url} target="_blank" rel="noreferrer">
+                                Download
+                              </a>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              onClick={() => openLinkOrNotify(f.url, 'Final document not available yet.')}
+                            >
                               Download
-                            </a>
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            type="button"
-                            onClick={() => openLinkOrNotify(f.url, 'Final document not available yet.')}
-                          >
-                            Download
-                          </Button>
-                        )}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -588,7 +604,6 @@ export function StaffTicketCaseTabs({
             <form
               ref={finalUploadFormRef}
               action={staffUploadFinalPackageFormAction}
-              encType="multipart/form-data"
               className="space-y-2"
             >
               <input type="hidden" name="ticketId" value={ticket.id} />

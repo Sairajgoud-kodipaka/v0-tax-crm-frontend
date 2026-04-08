@@ -1,9 +1,17 @@
 'use server';
 
 import { sendTicketMessageAction } from '@/app/actions/messages';
-import { deleteTicketByAdminAction, updateTicketStageAction } from '@/app/actions/tickets';
+import {
+  clientDraftResponseAction,
+  deleteTicketByAdminAction,
+  updateTicketStageAction,
+} from '@/app/actions/tickets';
 import { markInvoicePaidMvpAction } from '@/app/actions/payments';
-import { deleteTicketDocumentAction, uploadTicketDocumentAction } from '@/app/actions/documents';
+import {
+  deleteTicketDocumentAction,
+  replaceTicketDocumentAction,
+  uploadTicketDocumentAction,
+} from '@/app/actions/documents';
 import type { TicketStage } from '@/lib/types';
 import { STAGE_NAVIGATION } from '@/lib/constants';
 
@@ -34,6 +42,16 @@ export async function sendClientMessageFormAction(formData: FormData) {
   await sendTicketMessageAction(ticketId, body, { isInternal: false });
 }
 
+export async function clientDraftResponseFormAction(formData: FormData) {
+  const ticketId = formData.get('ticketId') as string;
+  const action = formData.get('action') as string;
+  const body = (formData.get('body') as string) ?? '';
+  if (!ticketId || (action !== 'approve' && action !== 'request_changes')) throw new Error('Invalid');
+  await clientDraftResponseAction(ticketId, action as 'approve' | 'request_changes', {
+    threadMessage: body.trim() || undefined,
+  });
+}
+
 export async function payInvoiceFormAction(formData: FormData) {
   const invoiceId = formData.get('invoiceId') as string;
   const ticketId = formData.get('ticketId') as string;
@@ -51,6 +69,11 @@ export async function clientDeleteDocumentFormAction(formData: FormData) {
   const documentId = formData.get('documentId') as string;
   if (!documentId) throw new Error('Invalid');
   await deleteTicketDocumentAction(documentId);
+}
+
+/** Shared by client (own uploads) and staff (any document they can access). */
+export async function replaceTicketDocumentFormAction(formData: FormData) {
+  await replaceTicketDocumentAction(formData);
 }
 
 export async function staffUploadDraftFormAction(formData: FormData) {
