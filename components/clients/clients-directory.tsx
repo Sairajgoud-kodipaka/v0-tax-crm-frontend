@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { updateClientAssignmentAction, updateClientNotesAction, updateClientStatusAction } from '@/app/actions/clients';
+import { updateClientRowAction } from '@/app/actions/clients';
 import type { ClientDirectoryRow } from '@/lib/data/clients-queries';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,12 +77,13 @@ export function ClientsDirectory(props: {
               <TableHead className="min-w-[12rem] whitespace-normal">Notes</TableHead>
               <TableHead className="w-[5rem]">Tickets</TableHead>
               <TableHead className="min-w-[7rem]">Status</TableHead>
+              <TableHead className="w-[6rem] text-right">Save</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   No clients match these filters.
                 </TableCell>
               </TableRow>
@@ -95,39 +96,29 @@ export function ClientsDirectory(props: {
                   <TableCell className="font-medium">{row.full_name?.trim() || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{row.email ?? '—'}</TableCell>
                   <TableCell>
-                    <form action={updateClientAssignmentAction} className="flex flex-col gap-1">
-                      <input type="hidden" name="profileId" value={row.profile_id} />
-                      <select
-                        name="employeeId"
-                        defaultValue={row.assigned_employee_id ?? ''}
-                        className="h-9 max-w-[11rem] rounded-md border border-input bg-background px-2 text-xs"
-                      >
-                        <option value="">Unassigned</option>
-                        {employees.map((e) => (
-                          <option key={e.id} value={e.id}>
-                            {e.full_name?.trim() || e.id.slice(0, 8)}
-                          </option>
-                        ))}
-                      </select>
-                      <Button type="submit" variant="outline" size="sm" className="h-8 max-w-[11rem] text-xs">
-                        Save
-                      </Button>
-                    </form>
+                    <select
+                      form={`client-row-${row.profile_id}`}
+                      name="employeeId"
+                      defaultValue={row.assigned_employee_id ?? ''}
+                      className="h-9 max-w-[11rem] rounded-md border border-input bg-background px-2 text-xs"
+                    >
+                      <option value="">Unassigned</option>
+                      {employees.map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.full_name?.trim() || e.id.slice(0, 8)}
+                        </option>
+                      ))}
+                    </select>
                   </TableCell>
                   <TableCell className="max-w-[14rem] whitespace-normal align-top">
-                    <form action={updateClientNotesAction} className="flex flex-col gap-1">
-                      <input type="hidden" name="profileId" value={row.profile_id} />
-                      <textarea
-                        name="notes"
-                        rows={2}
-                        defaultValue={row.notes ?? ''}
-                        placeholder="Internal notes"
-                        className="w-full min-w-[10rem] rounded-md border border-input bg-background px-2 py-1.5 text-xs"
-                      />
-                      <Button type="submit" variant="ghost" size="sm" className="h-7 w-fit text-xs">
-                        Save notes
-                      </Button>
-                    </form>
+                    <textarea
+                      form={`client-row-${row.profile_id}`}
+                      name="notes"
+                      rows={2}
+                      defaultValue={row.notes ?? ''}
+                      placeholder="Internal notes"
+                      className="w-full min-w-[10rem] rounded-md border border-input bg-background px-2 py-1.5 text-xs"
+                    />
                   </TableCell>
                   <TableCell>
                     <span className="font-medium tabular-nums">{row.ticket_count}</span>
@@ -141,17 +132,20 @@ export function ClientsDirectory(props: {
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    <form action={updateClientStatusAction}>
+                    <select
+                      form={`client-row-${row.profile_id}`}
+                      name="status"
+                      defaultValue={row.status}
+                      className="h-9 w-full max-w-[8rem] rounded-md border border-input bg-background px-2 text-xs"
+                    >
+                      <option value="active">Active</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <form id={`client-row-${row.profile_id}`} action={updateClientRowAction} className="inline-flex">
                       <input type="hidden" name="profileId" value={row.profile_id} />
-                      <select
-                        name="status"
-                        defaultValue={row.status}
-                        className="h-9 w-full max-w-[8rem] rounded-md border border-input bg-background px-2 text-xs"
-                      >
-                        <option value="active">Active</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                      <Button type="submit" variant="ghost" size="sm" className="mt-1 h-7 text-xs">
+                      <Button type="submit" variant="outline" size="sm" className="h-8 text-xs">
                         Save
                       </Button>
                     </form>

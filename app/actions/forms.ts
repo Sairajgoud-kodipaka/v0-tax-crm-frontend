@@ -71,6 +71,12 @@ export async function clientDeleteDocumentFormAction(formData: FormData) {
   await deleteTicketDocumentAction(documentId);
 }
 
+export async function deleteTicketDocumentFormAction(formData: FormData) {
+  const documentId = formData.get('documentId') as string;
+  if (!documentId) throw new Error('Invalid');
+  await deleteTicketDocumentAction(documentId);
+}
+
 /** Shared by client (own uploads) and staff (any document they can access). */
 export async function replaceTicketDocumentFormAction(formData: FormData) {
   await replaceTicketDocumentAction(formData);

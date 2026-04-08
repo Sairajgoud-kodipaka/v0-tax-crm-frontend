@@ -12,7 +12,6 @@ import {
   sendClientMessageFormAction,
   payInvoiceFormAction,
   clientUploadDocumentFormAction,
-  clientDeleteDocumentFormAction,
   clientDraftResponseFormAction,
 } from '@/app/actions/forms';
 import { ReplaceDocumentButton } from '@/components/documents/replace-document-button';
@@ -28,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Trash2, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { TaxOrganizerPanel } from '@/components/client/tax-organizer-panel';
 import {
   ticketCaseBlackCtaButtonClassName,
@@ -346,20 +345,22 @@ export function ClientCaseTabs({
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-wrap justify-end gap-2">
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={doc.url} target="_blank" rel="noreferrer">
-                                View
-                              </Link>
-                            </Button>
                             {doc.uploadedById === viewerUserId ? (
-                              <ReplaceDocumentButton documentId={doc.id} />
-                            ) : null}
-                            <form action={clientDeleteDocumentFormAction}>
-                              <input type="hidden" name="documentId" value={doc.id} />
-                              <Button type="submit" variant="ghost" size="icon" aria-label="Delete document">
-                                <Trash2 className="size-4 text-destructive" />
+                              <>
+                                <ReplaceDocumentButton documentId={doc.id} />
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link href={doc.url} target="_blank" rel="noreferrer">
+                                    Download
+                                  </Link>
+                                </Button>
+                              </>
+                            ) : (
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={doc.url} target="_blank" rel="noreferrer">
+                                  View
+                                </Link>
                               </Button>
-                            </form>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

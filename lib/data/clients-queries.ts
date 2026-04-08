@@ -20,7 +20,6 @@ type ClientJoinRow = {
   notes: string | null;
   status: string;
   created_at: string;
-  profiles: { full_name: string | null; email: string | null } | null;
 };
 
 export async function listEmployeesForClientFilter(): Promise<Array<{ id: string; full_name: string | null }>> {
@@ -47,8 +46,7 @@ export async function listClientDirectory(options: {
       assigned_employee_id,
       notes,
       status,
-      created_at,
-      profiles ( full_name, email )
+      created_at
     `,
     )
     .order('created_at', { ascending: false })
@@ -65,11 +63,24 @@ export async function listClientDirectory(options: {
   if (error || !raw) return [];
 
   let rows = raw as ClientJoinRow[];
+
+  const clientProfileIds = [...new Set(rows.map((r) => r.profile_id))];
+  const profileMap: Record<string, { full_name: string | null; email: string | null }> = {};
+  if (clientProfileIds.length > 0) {
+    const { data: clientProfiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', clientProfileIds);
+    for (const p of (clientProfiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>) {
+      profileMap[p.id] = { full_name: p.full_name, email: p.email };
+    }
+  }
+
   const search = options.q?.trim().toLowerCase();
   if (search) {
     rows = rows.filter((r) => {
-      const fn = r.profiles?.full_name?.toLowerCase() ?? '';
-      const em = r.profiles?.email?.toLowerCase() ?? '';
+      const fn = profileMap[r.profile_id]?.full_name?.toLowerCase() ?? '';
+      const em = profileMap[r.profile_id]?.email?.toLowerCase() ?? '';
       return fn.includes(search) || em.includes(search);
     });
   }
@@ -91,8 +102,8 @@ export async function listClientDirectory(options: {
 
   return rows.map((r) => ({
     profile_id: r.profile_id,
-    full_name: r.profiles?.full_name ?? null,
-    email: r.profiles?.email ?? null,
+    full_name: profileMap[r.profile_id]?.full_name ?? null,
+    email: profileMap[r.profile_id]?.email ?? null,
     assigned_employee_id: r.assigned_employee_id,
     assignee_name: r.assigned_employee_id ? (empMap[r.assigned_employee_id] ?? null) : null,
     notes: r.notes,

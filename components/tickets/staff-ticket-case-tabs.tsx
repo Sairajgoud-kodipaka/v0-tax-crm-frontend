@@ -11,6 +11,7 @@ import {
   staffUploadDraftFormAction,
   staffUploadInvoiceFileFormAction,
   staffUploadFinalPackageFormAction,
+  deleteTicketDocumentFormAction,
 } from '@/app/actions/forms';
 import { ReplaceDocumentButton } from '@/components/documents/replace-document-button';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,7 @@ import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import type { UserRole } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
-import { Upload } from 'lucide-react';
+import { Trash2, Upload } from 'lucide-react';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -342,6 +343,14 @@ export function StaffTicketCaseTabs({
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           {viewerIsStaff ? <ReplaceDocumentButton documentId={d.id} /> : null}
+                          {viewerIsStaff ? (
+                            <form action={deleteTicketDocumentFormAction}>
+                              <input type="hidden" name="documentId" value={d.id} />
+                              <Button type="submit" variant="ghost" size="icon" aria-label="Delete draft">
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </form>
+                          ) : null}
                           {d.url ? (
                             <Button variant="outline" size="sm" asChild>
                               <a href={d.url} target="_blank" rel="noreferrer">
@@ -489,6 +498,14 @@ export function StaffTicketCaseTabs({
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           {viewerIsStaff ? <ReplaceDocumentButton documentId={f.id} /> : null}
+                          {viewerIsStaff ? (
+                            <form action={deleteTicketDocumentFormAction}>
+                              <input type="hidden" name="documentId" value={f.id} />
+                              <Button type="submit" variant="ghost" size="icon" aria-label="Delete invoice file">
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </form>
+                          ) : null}
                           {f.url ? (
                             <Button variant="outline" size="sm" asChild>
                               <a href={f.url} target="_blank" rel="noreferrer">
@@ -577,6 +594,14 @@ export function StaffTicketCaseTabs({
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">
                           {viewerIsStaff ? <ReplaceDocumentButton documentId={f.id} /> : null}
+                          {viewerIsStaff ? (
+                            <form action={deleteTicketDocumentFormAction}>
+                              <input type="hidden" name="documentId" value={f.id} />
+                              <Button type="submit" variant="ghost" size="icon" aria-label="Delete final document">
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </form>
+                          ) : null}
                           {f.url ? (
                             <Button variant="outline" size="sm" asChild>
                               <a href={f.url} target="_blank" rel="noreferrer">
