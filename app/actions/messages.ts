@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
+import { logTicketActivityAction } from '@/app/actions/activity';
 
 export async function sendTicketMessageAction(
   ticketId: string,
@@ -23,6 +24,16 @@ export async function sendTicketMessageAction(
   });
 
   if (error) throw new Error(error.message);
+
+  // Log activity
+  await logTicketActivityAction({
+    ticketId,
+    actionType: 'message_sent',
+    details: { message_preview: body.trim().substring(0, 100) },
+    isVisibleToClient: !isInternal,
+    relatedEntityId: null, // Could fetch the inserted message id if needed
+    relatedEntityType: 'message',
+  });
 
   const { data: ticket } = await supabase
     .from('tickets')

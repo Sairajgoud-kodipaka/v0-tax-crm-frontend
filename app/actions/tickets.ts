@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { sendTicketMessageAction } from '@/app/actions/messages';
+import { logTicketActivityAction } from '@/app/actions/activity';
 import type { TicketStage } from '@/lib/types';
 
 export async function updateTicketStageAction(ticketId: string, toStage: TicketStage, note?: string) {
@@ -18,6 +19,20 @@ export async function updateTicketStageAction(ticketId: string, toStage: TicketS
   });
 
   if (error) throw new Error(error.message);
+
+  // Log activity
+  await logTicketActivityAction({
+    ticketId,
+    actionType: 'stage_changed',
+    details: { 
+      to_stage: toStage, 
+      note: note ?? null,
+      display_text: `Stage changed to ${toStage}${note ? ` - ${note}` : ''}`
+    },
+    isVisibleToClient: true,
+    relatedEntityId: null,
+    relatedEntityType: null,
+  });
 
   revalidatePath('/admin/tickets/' + ticketId);
   revalidatePath('/employee/tickets/' + ticketId);

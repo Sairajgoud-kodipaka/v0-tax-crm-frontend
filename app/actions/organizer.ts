@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
+import { logTicketActivityAction } from '@/app/actions/activity';
 
 export async function saveTaxOrganizerAction(ticketId: string, answers: Record<string, unknown>) {
   const supabase = createClient(await cookies());
@@ -38,6 +39,16 @@ export async function saveTaxOrganizerAction(ticketId: string, answers: Record<s
   );
 
   if (error) throw new Error(error.message);
+
+  // Log activity
+  await logTicketActivityAction({
+    ticketId,
+    actionType: 'organizer_updated',
+    details: { sections_updated: Object.keys(answers) },
+    isVisibleToClient: false, // Internal update
+    relatedEntityId: null,
+    relatedEntityType: 'organizer',
+  });
 
   revalidatePath('/client/cases/' + ticketId);
   revalidatePath('/admin/tickets/' + ticketId);

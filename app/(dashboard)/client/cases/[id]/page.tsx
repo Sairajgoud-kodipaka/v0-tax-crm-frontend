@@ -27,6 +27,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
   }
 
   const ticketRaw = JSON.parse(JSON.stringify(ticket)) as Record<string, unknown>;
+  const ticketActivities = JSON.parse(JSON.stringify(ticket.activities ?? [])) as Record<string, unknown>[];
   const organizerAnswers = await getTaxOrganizerAnswersAction(id);
 
   return (
@@ -39,6 +40,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
       </Button>
       <ClientCaseTabs
         ticketRaw={ticketRaw}
+        ticketActivities={ticketActivities}
         organizerAnswers={organizerAnswers}
         viewerUserId={session.id}
         viewerName={session.name}

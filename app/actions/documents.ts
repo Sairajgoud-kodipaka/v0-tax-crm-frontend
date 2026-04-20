@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { updateTicketStageAction } from '@/app/actions/tickets';
+import { logTicketActivityAction } from '@/app/actions/activity';
 import type { TicketStage } from '@/lib/types';
 
 const DRAFT_SENT: TicketStage = 'draft-sent';
@@ -89,6 +90,25 @@ export async function uploadTicketDocumentAction(
   });
 
   if (insErr) throw new Error(insErr.message);
+
+  // Log activity
+  let actionType: 'document_uploaded' | 'draft_sent' | 'final_document_available' = 'document_uploaded';
+  let isVisibleToClient = false;
+  if (category === 'draft') {
+    actionType = 'draft_sent';
+    isVisibleToClient = true;
+  } else if (category === 'final') {
+    actionType = 'final_document_available';
+    isVisibleToClient = true;
+  }
+  await logTicketActivityAction({
+    ticketId,
+    actionType,
+    details: { file_name: filename },
+    isVisibleToClient,
+    relatedEntityId: null, // Could fetch document id
+    relatedEntityType: 'document',
+  });
 
   if (category === 'draft') {
     await advanceToDraftSentOnDraftShareIfNeeded(supabase, ticketId, 'Draft uploaded');
@@ -211,6 +231,16 @@ export async function replaceTicketDocumentAction(formData: FormData) {
     throw new Error(updErr.message);
   }
 
+  // Log activity
+  await logTicketActivityAction({
+    ticketId: doc.ticket_id,
+    actionType: 'document_updated',
+    details: { file_name: filename },
+    isVisibleToClient: doc.category === 'draft', // Only drafts are visible
+    relatedEntityId: documentId,
+    relatedEntityType: 'document',
+  });
+
   const { error: rmErr } = await supabase.storage.from('tax-documents').remove([doc.storage_path]);
   if (rmErr) {
     console.error('replaceTicketDocumentAction: failed to remove old storage object', rmErr.message);
@@ -276,8 +306,40 @@ export async function deleteTicketDocumentAction(documentId: string) {
 
   const { error: deleteError } = await supabase.from('documents').delete().eq('id', documentId);
   if (deleteError) throw new Error(deleteError.message);
+}
 
-  revalidatePath('/admin/tickets/' + doc.ticket_id);
-  revalidatePath('/employee/tickets/' + doc.ticket_id);
-  revalidatePath('/client/cases/' + doc.ticket_id);
+export async function requestDocumentAction(ticketId: string, documentType: string, note?: string) {
+  const supabase = createClient(await cookies());
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+  const role = profile?.role;
+  if (role !== 'admin' && role !== 'employee') throw new Error('Forbidden');
+
+  // Log activity
+  await logTicketActivityAction({
+    ticketId,
+    actionType: 'document_requested',
+    details: { document_type: documentType, note: note ?? null },
+    isVisibleToClient: true,
+    relatedEntityId: null,
+    relatedEntityType: 'document',
+  });
+
+  // Send notification to client
+  const { data: ticket } = await supabase.from('tickets').select('client_id').eq('id', ticketId).single();
+  if (ticket) {
+    await supabase.rpc('create_ticket_notification', {
+      p_recipient_id: ticket.client_id,
+      p_ticket_id: ticketId,
+      p_type: 'document',
+      p_title: 'Document Requested',
+      p_body: `Please upload the requested document: ${documentType}${note ? ` - ${note}` : ''}. Case #${ticket.public_ref}.`,
+    });
+  }
+
+  revalidatePath('/admin/tickets/' + ticketId);
+  revalidatePath('/employee/tickets/' + ticketId);
+  revalidatePath('/client/cases/' + ticketId);
 }

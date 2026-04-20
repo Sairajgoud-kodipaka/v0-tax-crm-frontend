@@ -26,6 +26,20 @@ export type TicketStatus = 'open' | 'in-progress' | 'pending' | 'completed' | 'o
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
 
+// Activity Log Types
+export type ActivityAction =
+  | 'ticket_created'
+  | 'stage_changed'
+  | 'document_uploaded'
+  | 'document_updated'
+  | 'document_requested'
+  | 'message_sent'
+  | 'organizer_updated'
+  | 'draft_sent'
+  | 'final_document_available'
+  | 'payment_processed'
+  | 'invoice_created';
+
 export interface Ticket {
   id: string;
   clientId: string;
@@ -49,6 +63,7 @@ export interface Ticket {
   invoices?: TicketInvoiceRow[];
   finalDocuments?: TicketFinalDocument[];
   history?: TicketHistoryEntry[];
+  activities?: TicketActivity[];
   createdAt: Date;
   updatedAt: Date;
   dueDate?: Date;
@@ -63,6 +78,19 @@ export interface TicketHistoryEntry {
   fromStage?: TicketStage;
   toStage: TicketStage;
   note?: string;
+  createdAt: Date;
+}
+
+export interface TicketActivity {
+  id: string;
+  ticketId: string;
+  actorId: string;
+  actorType: 'client' | 'employee' | 'admin';
+  actionType: ActivityAction;
+  actionDetails: Record<string, unknown>;
+  isVisibleToClient: boolean;
+  relatedEntityId?: string;
+  relatedEntityType?: 'document' | 'message' | 'organizer';
   createdAt: Date;
 }
 

@@ -107,6 +107,76 @@ export interface Database {
           created_at: string;
         };
       };
+      ticket_activities: {
+        Row: {
+          id: string;
+          ticket_id: string;
+          actor_id: string;
+          actor_type: 'client' | 'employee' | 'admin';
+          action_type:
+            | 'ticket_created'
+            | 'stage_changed'
+            | 'document_uploaded'
+            | 'document_updated'
+            | 'document_requested'
+            | 'message_sent'
+            | 'organizer_updated'
+            | 'draft_sent'
+            | 'final_document_available'
+            | 'payment_processed'
+            | 'invoice_created';
+          action_details: Json;
+          is_visible_to_client: boolean;
+          related_entity_id: string | null;
+          related_entity_type: 'document' | 'message' | 'organizer' | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          ticket_id: string;
+          actor_id: string;
+          actor_type: 'client' | 'employee' | 'admin';
+          action_type:
+            | 'ticket_created'
+            | 'stage_changed'
+            | 'document_uploaded'
+            | 'document_updated'
+            | 'document_requested'
+            | 'message_sent'
+            | 'organizer_updated'
+            | 'draft_sent'
+            | 'final_document_available'
+            | 'payment_processed'
+            | 'invoice_created';
+          action_details?: Json;
+          is_visible_to_client?: boolean;
+          related_entity_id?: string | null;
+          related_entity_type?: 'document' | 'message' | 'organizer' | null;
+          created_at?: string;
+        };
+        Update: {
+          ticket_id?: string;
+          actor_id?: string;
+          actor_type?: 'client' | 'employee' | 'admin';
+          action_type?:
+            | 'ticket_created'
+            | 'stage_changed'
+            | 'document_uploaded'
+            | 'document_updated'
+            | 'document_requested'
+            | 'message_sent'
+            | 'organizer_updated'
+            | 'draft_sent'
+            | 'final_document_available'
+            | 'payment_processed'
+            | 'invoice_created';
+          action_details?: Json;
+          is_visible_to_client?: boolean;
+          related_entity_id?: string | null;
+          related_entity_type?: 'document' | 'message' | 'organizer' | null;
+          created_at?: string;
+        };
+      };
       invitation_links: {
         Row: {
           id: string;
@@ -185,6 +255,35 @@ export interface Database {
           p_type: string;
           p_title: string;
           p_body: string;
+        };
+        Returns: null;
+      };
+      log_ticket_activity: {
+        Args: {
+          p_ticket_id: string;
+          p_actor_id: string;
+          p_action_type:
+            | 'ticket_created'
+            | 'stage_changed'
+            | 'document_uploaded'
+            | 'document_updated'
+            | 'document_requested'
+            | 'message_sent'
+            | 'organizer_updated'
+            | 'draft_sent'
+            | 'final_document_available'
+            | 'payment_processed'
+            | 'invoice_created';
+          p_details: Json;
+          p_is_visible_to_client: boolean;
+          p_related_entity_id: string | null;
+          p_related_entity_type: 'document' | 'message' | 'organizer' | null;
+        };
+        Returns: null;
+      };
+      consume_invitation: {
+        Args: {
+          invite_token: string;
         };
         Returns: null;
       };

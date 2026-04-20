@@ -13,9 +13,12 @@ import {
   staffUploadFinalPackageFormAction,
   deleteTicketDocumentFormAction,
 } from '@/app/actions/forms';
+import { requestDocumentAction } from '@/app/actions/documents';
 import { ReplaceDocumentButton } from '@/components/documents/replace-document-button';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,9 +39,11 @@ import {
 import { cn } from '@/lib/utils';
 import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
-import type { UserRole } from '@/lib/types';
+import type { UserRole, TicketActivity } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { Trash2, Upload } from 'lucide-react';
+import { useTicketHistoryRealtime } from '@/hooks/use-ticket-history-realtime';
+import { TicketHistory } from '@/components/tickets/ticket-history';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -75,6 +80,7 @@ export function StaffTicketCaseTabs({
     ['drafts', 'Tax Drafts'],
     ['invoices', 'Invoices'],
     ['final', 'Final Documents'],
+    ['history', 'History'],
   ] as const;
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
   const draftUploadFormRef = useRef<HTMLFormElement | null>(null);
@@ -86,10 +92,18 @@ export function StaffTicketCaseTabs({
   const [draftUploading, setDraftUploading] = useState(false);
   const [invoiceUploading, setInvoiceUploading] = useState(false);
   const [finalUploading, setFinalUploading] = useState(false);
+  const [requestingDocument, setRequestingDocument] = useState(false);
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const ref = displayTicketRef(ticket);
   const status = clientStatusPresentation(ticket);
   const messages = useTicketMessagesRealtime(ticket.id, ticket.messages ?? [], { hideInternal: false });
+  const activitiesInitial = useMemo(() => {
+    return (ticket.activities ?? []).map((activity) => ({
+      ...activity,
+      createdAt: new Date(activity.createdAt as unknown as string),
+    })) as TicketActivity[];
+  }, [ticket.activities]);
+  const historyActivities = useTicketHistoryRealtime(ticket.id, activitiesInitial);
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
@@ -257,6 +271,48 @@ export function StaffTicketCaseTabs({
 
         <TabsContent value="documents" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
+            {viewerIsStaff && (
+              <div className="rounded-lg border border-border p-4">
+                <h3 className="text-sm font-medium mb-3">Request Document</h3>
+                <form
+                  action={async (formData: FormData) => {
+                    setRequestingDocument(true);
+                    try {
+                      await requestDocumentAction(formData);
+                      toast({ title: 'Document requested successfully' });
+                    } catch (error) {
+                      toast({ title: 'Failed to request document', variant: 'destructive' });
+                    } finally {
+                      setRequestingDocument(false);
+                    }
+                  }}
+                  className="space-y-3"
+                >
+                  <input type="hidden" name="ticketId" value={ticket.id} />
+                  <div>
+                    <Label htmlFor="documentType">Document Type</Label>
+                    <Input
+                      id="documentType"
+                      name="documentType"
+                      placeholder="e.g., W-2, 1099, Passport"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="note">Note (optional)</Label>
+                    <Textarea
+                      id="note"
+                      name="note"
+                      placeholder="Additional instructions for the client"
+                      rows={2}
+                    />
+                  </div>
+                  <Button type="submit" disabled={requestingDocument}>
+                    {requestingDocument ? 'Requesting...' : 'Request Document'}
+                  </Button>
+                </form>
+              </div>
+            )}
             <div className="rounded-lg border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Documents</div>
               <div className="overflow-x-auto">
@@ -657,6 +713,10 @@ export function StaffTicketCaseTabs({
               </Button>
             </form>
           </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0 p-3 sm:p-6">
+          <TicketHistory activities={historyActivities} isStaff={true} />
         </TabsContent>
       </Tabs>
     </div>

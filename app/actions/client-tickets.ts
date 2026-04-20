@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
+import { logTicketActivityAction } from '@/app/actions/activity';
 
 type CreateClientTicketResult =
   | { ok: true; message: string }
@@ -82,6 +83,16 @@ export async function createClientTicketAction(
     actor_id: user.id,
     to_stage: 'pending-info',
     note: 'Ticket created by client',
+  });
+
+  // Log activity
+  await logTicketActivityAction({
+    ticketId: inserted.id,
+    actionType: 'ticket_created',
+    details: { subject: `${filingType} - ${taxYear}` },
+    isVisibleToClient: true,
+    relatedEntityId: null,
+    relatedEntityType: null,
   });
 
   const clientName =

@@ -37,7 +37,9 @@ import {
 import { cn } from '@/lib/utils';
 import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
-import type { TicketStage, UserRole } from '@/lib/types';
+import { useTicketHistoryRealtime } from '@/hooks/use-ticket-history-realtime';
+import { TicketHistory } from '@/components/tickets/ticket-history';
+import type { TicketActivity, TicketStage, UserRole } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { submitClientInformationAction } from '@/app/actions/tickets';
 
@@ -83,12 +85,14 @@ function clientStageStatusBannerText(stage: TicketStage): string {
 /** Pass JSON-serializable ticket from a Server Component (dates as ISO strings). */
 export function ClientCaseTabs({
   ticketRaw,
+  ticketActivities = [],
   organizerAnswers = {},
   viewerUserId,
   viewerName,
   viewerRole = 'client',
 }: {
   ticketRaw: Record<string, unknown>;
+  ticketActivities?: Record<string, unknown>[];
   organizerAnswers?: Record<string, unknown>;
   viewerUserId: string;
   viewerName: string;
@@ -101,6 +105,7 @@ export function ClientCaseTabs({
     ['drafts', 'Tax Drafts'],
     ['invoices', 'Invoices'],
     ['final', 'Final Documents'],
+    ['history', 'History'],
   ] as const;
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
@@ -121,6 +126,13 @@ export function ClientCaseTabs({
     () => messagesLive.filter((m) => !m.isInternal),
     [messagesLive],
   );
+  const activitiesInitial = useMemo(() => {
+    return (ticketActivities ?? []).map((activity) => ({
+      ...activity,
+      createdAt: new Date(activity.createdAt as string),
+    })) as TicketActivity[];
+  }, [ticketActivities]);
+  const historyActivities = useTicketHistoryRealtime(ticket.id, activitiesInitial);
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
   const { onlineOthers, typingHint, notifyTyping } = useTicketPresenceTyping(
@@ -773,6 +785,14 @@ export function ClientCaseTabs({
               Official completed documents for this ticket once filing is finalized.
             </p>
           </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-0 p-4 sm:p-6">
+          <TicketHistory
+            activities={historyActivities}
+            isStaff={false}
+            onTabSwitch={(tab, entityId) => setActiveTab(tab as (typeof caseTabs)[number][0])}
+          />
         </TabsContent>
       </Tabs>
     </div>

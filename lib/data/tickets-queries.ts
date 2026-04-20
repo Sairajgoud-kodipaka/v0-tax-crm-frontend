@@ -2,7 +2,7 @@ import 'server-only';
 
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
-import type { Ticket, TicketStage, UserRole } from '@/lib/types';
+import type { ActivityAction, Ticket, TicketStage, UserRole } from '@/lib/types';
 import { mapDocumentRow, mapMessageRow, mapTicketRow } from '@/lib/data/map-ticket';
 import type { SessionUser } from '@/lib/session-user';
 
@@ -67,6 +67,19 @@ type TicketHistoryRow = {
   from_stage: string | null;
   to_stage: string;
   note: string | null;
+  created_at: string;
+};
+
+type TicketActivityRow = {
+  id: string;
+  ticket_id: string;
+  actor_id: string;
+  actor_type: string;
+  action_type: string;
+  action_details: Record<string, unknown>;
+  is_visible_to_client: boolean;
+  related_entity_id: string | null;
+  related_entity_type: string | null;
   created_at: string;
 };
 
@@ -311,9 +324,28 @@ export async function getTicketDetailBundle(
       createdAt: new Date(h.created_at),
     }));
 
+  const { data: activityRowsRaw } = await supabase
+    .from('ticket_activities')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: false });
+  const activityRows = (activityRowsRaw ?? []) as TicketActivityRow[];
+  const activities = activityRows.map((a) => ({
+      id: a.id,
+      ticketId: a.ticket_id,
+      actorId: a.actor_id,
+      actorType: a.actor_type as 'client' | 'employee' | 'admin',
+      actionType: a.action_type as ActivityAction,
+      actionDetails: a.action_details ?? {},
+      isVisibleToClient: a.is_visible_to_client,
+      relatedEntityId: a.related_entity_id ?? undefined,
+      relatedEntityType: (a.related_entity_type as 'document' | 'message' | 'organizer') ?? undefined,
+      createdAt: new Date(a.created_at),
+    }));
+
   const staffDocs = role === 'client' ? clientUploadDocs : documents;
 
-  return mapTicketRow(ticket, {
+  const mappedTicket = mapTicketRow(ticket, {
     clientName: client?.full_name ?? 'Client',
     clientEmail: client?.email ?? '',
     assignedToName: assignee?.full_name ?? undefined,
@@ -325,6 +357,11 @@ export async function getTicketDetailBundle(
     finalDocuments,
     history,
   });
+
+  return {
+    ...mappedTicket,
+    activities,
+  };
 }
 
 export async function getTicketForClientCase(ticketId: string, clientId: string): Promise<Ticket | null> {
