@@ -132,6 +132,14 @@ const StageNav = memo(function StageNav({
   currentStage: string | undefined;
   baseUrl: string;
 }) {
+  const router = useRouter();
+  const [isPending, startStageTransition] = useTransition();
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPending) setPendingStage(null);
+  }, [isPending]);
+
   return (
     <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
       {expanded && (
@@ -141,25 +149,33 @@ const StageNav = memo(function StageNav({
       )}
       <ul className="space-y-0.5">
         {STAGES.map((stage) => {
-          const isActive = currentStage === stage.id;
+          const effectiveStage = pendingStage ?? currentStage;
+          const isActive = effectiveStage === stage.id;
+          const isLoading = isPending && pendingStage === stage.id;
           const Icon = stage.icon;
-          const href = `${baseUrl}/queues?stage=${stage.id}`;
           return (
             <li key={stage.id}>
               <NavTooltip collapsed={collapsed} label={stage.label}>
-                <Link
-                  href={href}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingStage(stage.id);
+                    startStageTransition(() => {
+                      router.push(`${baseUrl}/queues?stage=${stage.id}`);
+                    });
+                  }}
                   className={cn(
-                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    'w-full flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                    isLoading && 'opacity-70',
                   )}
                 >
-                  <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                  <Icon className={cn('size-[18px] shrink-0 stroke-[1.75]', isLoading && 'animate-pulse')} />
                   {expanded && <span className="truncate">{stage.label}</span>}
-                </Link>
+                </button>
               </NavTooltip>
             </li>
           );
@@ -381,7 +397,7 @@ export function DashboardLayout({
                 expanded={expanded}
                 currentStage={currentStage}
                 baseUrl={baseUrl}
-              />
+                />
             )}
 
             {isClient && clientSidebarNavigation.length > 0 && (
