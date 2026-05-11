@@ -14,7 +14,7 @@ In `v0-tax-crm-frontend/.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` (anon key)
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only; required to create employee users from Admin UI)
-- `NEXT_PUBLIC_APP_URL` (optional; used for invitation link, e.g. `http://localhost:3000`)
+- `NEXT_PUBLIC_APP_URL` (optional; used for invitation link, e.g `http://localhost:3000`)
 
 ## Auth notes
 
