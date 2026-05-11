@@ -49,8 +49,8 @@ function LoginInner() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-primary">TaxCRM</h1>
-          <p className="text-muted-foreground">Tax Return Management System</p>
+          <h1 className="text-4xl font-bold text-primary">Taxfiley</h1>
+          <p className="text-muted-foreground">Smart Tax Filing &amp; Client Portal</p>
         </div>
 
         <Card>
