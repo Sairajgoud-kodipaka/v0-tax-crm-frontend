@@ -18,7 +18,7 @@ In `v0-tax-crm-frontend/.env.local`:
 
 ## Auth notes
 
-- **Email confirmation**: For local dev, disable “Confirm email” in Supabase Auth settings so clients can sign up and immediately call `consume_invitation`.
+- **Email confirmation**: For local deve, disable “Confirm email” in Supabase Auth settings so clients can sign up and immediately call `consume_invitation`.
 - **Admin / employee users**: Create users in Supabase Auth, then set roles:
 
 ```sql
