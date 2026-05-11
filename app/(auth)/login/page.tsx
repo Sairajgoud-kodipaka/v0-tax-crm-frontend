@@ -140,7 +140,7 @@ function LoginInner() {
         </Card>
 
         <p className="text-xs text-muted-foreground text-center">
-          Admin and employee accounts are created in Supabase; clients sign up via invite link.
+        
         </p>
       </div>
     </div>

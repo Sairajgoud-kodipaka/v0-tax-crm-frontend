@@ -7,10 +7,11 @@ import { EmployeeBarChart } from '@/app/(dashboard)/employee/employee-bar-chart'
 import { QueueRealtimeRefresh } from '@/components/realtime/queue-realtime-refresh';
 
 export default async function EmployeeDashboard() {
-  const session = await getSessionUser();
+  const [session, d] = await Promise.all([
+    getSessionUser(),
+    getEmployeeDashboardData(),
+  ]);
   if (!session || session.role !== 'employee') return null;
-
-  const d = await getEmployeeDashboardData();
 
   return (
     <div className="space-y-6">

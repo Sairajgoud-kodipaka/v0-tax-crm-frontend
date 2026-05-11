@@ -8,10 +8,11 @@ export default async function EmployeeTicketDetailPage({ params }: { params: Pro
   const session = await getSessionUser();
   if (!session || session.role !== 'employee') notFound();
 
-  const ticket = await getTicketDetailBundle(id, 'employee', session.id);
+  const [ticket, organizerAnswers] = await Promise.all([
+    getTicketDetailBundle(id, 'employee', session.id),
+    getTaxOrganizerAnswersAction(id),
+  ]);
   if (!ticket) notFound();
-
-  const organizerAnswers = await getTaxOrganizerAnswersAction(id);
 
   return (
     <StaffTicketDetail

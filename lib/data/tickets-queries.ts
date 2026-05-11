@@ -1,16 +1,19 @@
 import 'server-only';
 
+import { cache } from 'react';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import type { ActivityAction, Ticket, TicketStage, UserRole } from '@/lib/types';
 import { mapDocumentRow, mapMessageRow, mapTicketRow } from '@/lib/data/map-ticket';
 import type { SessionUser } from '@/lib/session-user';
 
-export async function getServerSupabase() {
+// cache() deduplicates calls within the same server request — layout + page
+// share one result instead of each making their own DB round-trips.
+export const getServerSupabase = cache(async () => {
   return createClient(await cookies());
-}
+});
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await getServerSupabase();
   const {
     data: { user },
@@ -33,7 +36,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     name: profile.full_name ?? user.email?.split('@')[0] ?? 'User',
     role: profile.role as UserRole,
   };
-}
+});
 
 const DEFAULT_STAGE: TicketStage = 'pending-info';
 
@@ -98,6 +101,9 @@ async function profileMapForIds(
   return map;
 }
 
+const TICKET_LIST_COLUMNS =
+  'id, public_ref, client_id, assigned_employee_id, stage, status, priority, subject, filing_type, tax_year, due_date, created_at, updated_at' as const;
+
 export async function listTicketsForStage(
   stage: TicketStage | null | undefined,
   _role: 'admin' | 'employee',
@@ -106,7 +112,7 @@ export async function listTicketsForStage(
   const supabase = await getServerSupabase();
   const st = stage ?? DEFAULT_STAGE;
 
-  const q = supabase.from('tickets').select('*').eq('stage', st).order('updated_at', { ascending: false });
+  const q = supabase.from('tickets').select(TICKET_LIST_COLUMNS).eq('stage', st).order('updated_at', { ascending: false });
 
   const { data: rowsRaw, error } = await q;
   const rows = (rowsRaw ?? []) as TicketRow[];
@@ -134,7 +140,7 @@ export async function listTicketsForStage(
 /** All tickets visible to staff (employee queues are shared across the team). */
 export async function listAllTicketsForStaff(): Promise<Ticket[]> {
   const supabase = await getServerSupabase();
-  const { data: rowsRaw, error } = await supabase.from('tickets').select('*').order('updated_at', { ascending: false });
+  const { data: rowsRaw, error } = await supabase.from('tickets').select(TICKET_LIST_COLUMNS).order('updated_at', { ascending: false });
   const rows = (rowsRaw ?? []) as TicketRow[];
 
   if (error || !rows?.length) return [];
@@ -159,7 +165,7 @@ export async function listTicketsForClient(clientId: string): Promise<Ticket[]> 
   const supabase = await getServerSupabase();
   const { data: rowsRaw, error } = await supabase
     .from('tickets')
-    .select('*')
+    .select(TICKET_LIST_COLUMNS)
     .eq('client_id', clientId)
     .order('updated_at', { ascending: false });
   const rows = (rowsRaw ?? []) as TicketRow[];
@@ -195,6 +201,7 @@ export async function getTicketDetailBundle(
 ): Promise<Ticket | null> {
   const supabase = await getServerSupabase();
 
+  // Phase 1: fetch ticket
   const { data: ticketRaw, error: tErr } = await supabase
     .from('tickets')
     .select('*')
@@ -203,145 +210,134 @@ export async function getTicketDetailBundle(
   const ticket = ticketRaw as TicketRow | null;
   if (tErr || !ticket) return null;
 
-  const { data: clientRaw } = await supabase
-    .from('profiles')
-    .select('full_name, email')
-    .eq('id', ticket.client_id)
-    .maybeSingle();
-  const client = clientRaw as { full_name: string | null; email: string | null } | null;
-
-  const { data: assigneeRaw } = ticket.assigned_employee_id
-    ? await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', ticket.assigned_employee_id)
-        .maybeSingle()
-    : { data: null };
-  const assignee = assigneeRaw as { full_name: string | null } | null;
-
   const allowed =
     role === 'admin' ||
     role === 'employee' ||
     (role === 'client' && ticket.client_id === userId);
-
   if (!allowed) return null;
 
-  const { data: msgRowsRaw } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: true });
+  // Phase 2: all independent fetches in parallel
+  const assigneeQuery = ticket.assigned_employee_id
+    ? supabase.from('profiles').select('full_name').eq('id', ticket.assigned_employee_id).maybeSingle()
+    : Promise.resolve({ data: null });
+
+  const [
+    { data: clientRaw },
+    { data: assigneeRaw },
+    { data: msgRowsRaw },
+    { data: docRowsRaw },
+    { data: invRowsRaw },
+    { data: historyRowsRaw },
+    { data: activityRowsRaw },
+  ] = await Promise.all([
+    supabase.from('profiles').select('full_name, email').eq('id', ticket.client_id).maybeSingle(),
+    assigneeQuery,
+    supabase.from('messages').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: true }),
+    supabase.from('documents').select('*').eq('ticket_id', ticketId),
+    supabase.from('invoices').select('*').eq('ticket_id', ticketId),
+    supabase.from('ticket_history').select('id, actor_id, from_stage, to_stage, note, created_at').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
+    supabase.from('ticket_activities').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: false }),
+  ]);
+
+  const client = clientRaw as { full_name: string | null; email: string | null } | null;
+  const assignee = assigneeRaw as { full_name: string | null } | null;
   const msgRows = (msgRowsRaw ?? []) as MessageRow[];
+  const docRows = (docRowsRaw ?? []) as DocumentRow[];
+  const invRows = (invRowsRaw ?? []) as InvoiceRow[];
+  const historyRows = (historyRowsRaw ?? []) as TicketHistoryRow[];
+  const activityRows = (activityRowsRaw ?? []) as TicketActivityRow[];
+
+  // Phase 3: profile lookups + all signed URLs in parallel
+  const uploaderIds = [...new Set(docRows.map((d) => d.uploaded_by).filter(Boolean) as string[])];
+  const historyActorIds = [...new Set(historyRows.map((h) => h.actor_id).filter(Boolean) as string[])];
+  const allStoragePaths = docRows.map((d) => d.storage_path);
+
+  const [uploaders, historyActors, signedUrls] = await Promise.all([
+    profileMapForIds(supabase, uploaderIds),
+    profileMapForIds(supabase, historyActorIds),
+    Promise.all(allStoragePaths.map((path) => signedUrlForPath(supabase, path))),
+  ]);
+
+  // Build path → url map to avoid duplicate signed URL calls
+  const urlMap: Record<string, string> = {};
+  for (let i = 0; i < docRows.length; i++) {
+    urlMap[docRows[i].storage_path] = signedUrls[i];
+  }
 
   const messages = msgRows.map((m) => mapMessageRow(m));
 
-  const { data: docRowsRaw } = await supabase.from('documents').select('*').eq('ticket_id', ticketId);
-  const docRows = (docRowsRaw ?? []) as DocumentRow[];
-
-  const uploaderIds = [...new Set(docRows.map((d) => d.uploaded_by).filter(Boolean) as string[])];
-  const uploaders = await profileMapForIds(supabase, uploaderIds);
-
-  const documents = await Promise.all(
-    docRows.map(async (d) => {
-      const url = await signedUrlForPath(supabase, d.storage_path);
-      const up = d.uploaded_by ? uploaders[d.uploaded_by] : undefined;
-      return mapDocumentRow(
-        {
-          ...d,
-          uploader: up ? { full_name: up.full_name } : null,
-        },
-        url,
-      );
-    }),
-  );
+  const documents = docRows.map((d) => {
+    const up = d.uploaded_by ? uploaders[d.uploaded_by] : undefined;
+    return mapDocumentRow(
+      { ...d, uploader: up ? { full_name: up.full_name } : null },
+      urlMap[d.storage_path],
+    );
+  });
 
   const clientUploadDocs = docRows
     .map((d, i) => ({ d, doc: documents[i] }))
     .filter(({ d }) => d.category === 'client_upload')
     .map(({ doc }) => doc);
 
-  const { data: invRowsRaw } = await supabase.from('invoices').select('*').eq('ticket_id', ticketId);
-  const invRows = (invRowsRaw ?? []) as InvoiceRow[];
-
   const invoices = invRows.map((inv) => ({
-      id: inv.id,
-      invoiceNumber: inv.invoice_number,
-      description: inv.description ?? '',
-      amountCents: inv.amount_cents,
-      status: inv.status as 'paid' | 'unpaid',
-      dueDate: inv.due_date ? new Date(inv.due_date) : undefined,
-      paidAt: inv.paid_at ? new Date(inv.paid_at) : undefined,
+    id: inv.id,
+    invoiceNumber: inv.invoice_number,
+    description: inv.description ?? '',
+    amountCents: inv.amount_cents,
+    status: inv.status as 'paid' | 'unpaid',
+    dueDate: inv.due_date ? new Date(inv.due_date) : undefined,
+    paidAt: inv.paid_at ? new Date(inv.paid_at) : undefined,
+  }));
+
+  const drafts = docRows
+    .filter((d) => d.category === 'draft')
+    .map((d) => ({
+      id: d.id,
+      name: d.original_filename ?? 'Draft',
+      sharedAt: d.shared_at ? new Date(d.shared_at) : new Date(d.created_at),
+      url: urlMap[d.storage_path],
     }));
 
-  const draftRows = docRows.filter((d) => d.category === 'draft');
-  const drafts =
-    (await Promise.all(
-      draftRows.map(async (d) => ({
-        id: d.id,
-        name: d.original_filename ?? 'Draft',
-        sharedAt: d.shared_at ? new Date(d.shared_at) : new Date(d.created_at),
-        url: await signedUrlForPath(supabase, d.storage_path),
-      })),
-    )) ?? [];
+  const invoiceFiles = docRows
+    .filter((d) => d.category === 'other')
+    .map((d) => ({
+      id: d.id,
+      name: d.original_filename ?? 'Invoice file',
+      sharedAt: new Date(d.created_at),
+      url: urlMap[d.storage_path],
+    }));
 
-  const invoiceFileRows = docRows.filter((d) => d.category === 'other');
-  const invoiceFiles =
-    (await Promise.all(
-      invoiceFileRows.map(async (d) => ({
-        id: d.id,
-        name: d.original_filename ?? 'Invoice file',
-        sharedAt: new Date(d.created_at),
-        url: await signedUrlForPath(supabase, d.storage_path),
-      })),
-    )) ?? [];
+  const finalDocuments = docRows
+    .filter((d) => d.category === 'final')
+    .map((d) => ({
+      id: d.id,
+      name: d.original_filename ?? 'Document',
+      availableAt: d.available_at ? new Date(d.available_at) : undefined,
+      url: urlMap[d.storage_path],
+    }));
 
-  const finalRows = docRows.filter((d) => d.category === 'final');
-  const finalDocuments =
-    (await Promise.all(
-      finalRows.map(async (d) => ({
-        id: d.id,
-        name: d.original_filename ?? 'Document',
-        availableAt: d.available_at ? new Date(d.available_at) : undefined,
-        url: await signedUrlForPath(supabase, d.storage_path),
-      })),
-    )) ?? [];
-
-  const { data: historyRowsRaw } = await supabase
-    .from('ticket_history')
-    .select('id, actor_id, from_stage, to_stage, note, created_at')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: false });
-  const historyRows = (historyRowsRaw ?? []) as TicketHistoryRow[];
-  const historyActorIds = [...new Set(historyRows.map((h) => h.actor_id).filter(Boolean) as string[])];
-  const historyActors = await profileMapForIds(supabase, historyActorIds);
   const history = historyRows.map((h) => ({
-      id: h.id,
-      actorId: h.actor_id,
-      actorName: historyActors[h.actor_id]?.full_name ?? historyActors[h.actor_id]?.email ?? 'System',
-      fromStage: (h.from_stage ?? undefined) as TicketStage | undefined,
-      toStage: h.to_stage as TicketStage,
-      note: h.note ?? undefined,
-      createdAt: new Date(h.created_at),
-    }));
+    id: h.id,
+    actorId: h.actor_id,
+    actorName: historyActors[h.actor_id]?.full_name ?? historyActors[h.actor_id]?.email ?? 'System',
+    fromStage: (h.from_stage ?? undefined) as TicketStage | undefined,
+    toStage: h.to_stage as TicketStage,
+    note: h.note ?? undefined,
+    createdAt: new Date(h.created_at),
+  }));
 
-  const { data: activityRowsRaw } = await supabase
-    .from('ticket_activities')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('created_at', { ascending: false });
-  const activityRows = (activityRowsRaw ?? []) as TicketActivityRow[];
   const activities = activityRows.map((a) => ({
-      id: a.id,
-      ticketId: a.ticket_id,
-      actorId: a.actor_id,
-      actorType: a.actor_type as 'client' | 'employee' | 'admin',
-      actionType: a.action_type as ActivityAction,
-      actionDetails: a.action_details ?? {},
-      isVisibleToClient: a.is_visible_to_client,
-      relatedEntityId: a.related_entity_id ?? undefined,
-      relatedEntityType: (a.related_entity_type as 'document' | 'message' | 'organizer') ?? undefined,
-      createdAt: new Date(a.created_at),
-    }));
+    id: a.id,
+    ticketId: a.ticket_id,
+    actorId: a.actor_id,
+    actorType: a.actor_type as 'client' | 'employee' | 'admin',
+    actionType: a.action_type as ActivityAction,
+    actionDetails: a.action_details ?? {},
+    isVisibleToClient: a.is_visible_to_client,
+    relatedEntityId: a.related_entity_id ?? undefined,
+    relatedEntityType: (a.related_entity_type as 'document' | 'message' | 'organizer') ?? undefined,
+    createdAt: new Date(a.created_at),
+  }));
 
   const staffDocs = role === 'client' ? clientUploadDocs : documents;
 
