@@ -8,10 +8,9 @@ export default async function AdminClientsPage({
 }: {
   searchParams: Promise<{ q?: string; assigned?: string }>;
 }) {
-  const session = await getSessionUser();
+  const [session, sp] = await Promise.all([getSessionUser(), searchParams]);
   if (!session || session.role !== 'admin') redirect('/admin');
 
-  const sp = await searchParams;
   const q = sp.q ?? '';
   const assigned = sp.assigned ?? 'all';
 

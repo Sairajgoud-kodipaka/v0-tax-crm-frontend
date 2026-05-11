@@ -11,7 +11,10 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
   const session = await getSessionUser();
   if (!session || session.role !== 'client') notFound();
 
-  const ticket = await getTicketForClientCase(id, session.id);
+  const [ticket, organizerAnswers] = await Promise.all([
+    getTicketForClientCase(id, session.id),
+    getTaxOrganizerAnswersAction(id),
+  ]);
   if (!ticket) {
     return (
       <div className="space-y-4">
@@ -28,7 +31,6 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
 
   const ticketRaw = JSON.parse(JSON.stringify(ticket)) as Record<string, unknown>;
   const ticketActivities = JSON.parse(JSON.stringify(ticket.activities ?? [])) as Record<string, unknown>[];
-  const organizerAnswers = await getTaxOrganizerAnswersAction(id);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">

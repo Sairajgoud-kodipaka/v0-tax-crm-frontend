@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { cache } from 'react';
+import { headers } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import type { ActivityAction, Ticket, TicketStage, UserRole } from '@/lib/types';
@@ -14,6 +15,24 @@ export const getServerSupabase = cache(async () => {
 });
 
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  // Middleware sets these headers after validating the session and fetching the
+  // profile — so layouts and pages pay zero extra DB calls for auth.
+  const hdrs = await headers();
+  const id = hdrs.get('x-user-id');
+  const role = hdrs.get('x-user-role') as UserRole | null;
+
+  if (id && role) {
+    const email = hdrs.get('x-user-email') ?? '';
+    return {
+      id,
+      email,
+      name: hdrs.get('x-user-name') || email.split('@')[0] || 'User',
+      role,
+    };
+  }
+
+  // Fallback for contexts where middleware headers are not available
+  // (e.g. Server Actions called directly).
   const supabase = await getServerSupabase();
   const {
     data: { user },

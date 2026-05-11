@@ -24,10 +24,11 @@ export default async function EmployeeQueuesPage({
   }
 
   const selectedStage = stageParam as TicketStage;
-  const session = await getSessionUser();
+  const [session, filteredTickets] = await Promise.all([
+    getSessionUser(),
+    listTicketsForStage(selectedStage, 'employee', ''),
+  ]);
   if (!session || session.role !== 'employee') return null;
-
-  const filteredTickets = await listTicketsForStage(selectedStage, 'employee', session.id);
   const stageInfo = TICKET_STAGES[selectedStage];
 
   return (

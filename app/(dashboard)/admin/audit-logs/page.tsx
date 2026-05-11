@@ -32,14 +32,14 @@ export default async function AuditLogsPage({
   const actorIds = [...new Set(logs.map((l) => l.actor_id).filter(Boolean))];
   const ticketIds = [...new Set(logs.map((l) => l.ticket_id).filter(Boolean))];
 
-  const { data: actorRows } =
+  const [{ data: actorRows }, { data: ticketRows }] = await Promise.all([
     actorIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name, email').in('id', actorIds)
-      : { data: [] };
-  const { data: ticketRows } =
+      ? supabase.from('profiles').select('id, full_name, email').in('id', actorIds)
+      : Promise.resolve({ data: [] }),
     ticketIds.length > 0
-      ? await supabase.from('tickets').select('id, public_ref, subject').in('id', ticketIds)
-      : { data: [] };
+      ? supabase.from('tickets').select('id, public_ref, subject').in('id', ticketIds)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const actorMap = Object.fromEntries((actorRows ?? []).map((p) => [p.id, p.full_name ?? p.email ?? 'Unknown user']));
   const ticketMap = Object.fromEntries((ticketRows ?? []).map((t) => [t.id, t]));

@@ -5,10 +5,8 @@ import { getSessionUser, listAllTicketsForStaff } from '@/lib/data/tickets-queri
 import { displayTicketRef } from '@/lib/client-ui';
 
 export default async function EmployeeMessagesPage() {
-  const session = await getSessionUser();
+  const [session, myTickets] = await Promise.all([getSessionUser(), listAllTicketsForStaff()]);
   if (!session || session.role !== 'employee') return null;
-
-  const myTickets = await listAllTicketsForStaff();
 
   return (
     <div className="space-y-6">

@@ -53,24 +53,24 @@ export default async function ClientMessagesPage({
     filteredTickets.find((t) => t.id === sp.ticket)?.id ?? filteredTickets[0]?.id ?? null;
 
   const employeeIds = [...new Set(clientTickets.map((t) => t.assigned_employee_id).filter(Boolean) as string[])];
-  const { data: employeeRows } =
-    employeeIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name').in('id', employeeIds)
-      : { data: [] };
-  const employeeNames = Object.fromEntries(
-    ((employeeRows ?? []) as EmployeeRow[]).map((e) => [e.id, e.full_name ?? 'Tax preparer']),
-  );
-
   const ticketIds = filteredTickets.map((t) => t.id);
-  const { data: msgRows } =
+
+  const [{ data: employeeRows }, { data: msgRows }] = await Promise.all([
+    employeeIds.length > 0
+      ? supabase.from('profiles').select('id, full_name').in('id', employeeIds)
+      : Promise.resolve({ data: [] }),
     ticketIds.length > 0
-      ? await supabase
+      ? supabase
           .from('messages')
           .select('id, ticket_id, sender_id, body, created_at')
           .in('ticket_id', ticketIds)
           .eq('is_internal', false)
           .order('created_at', { ascending: true })
-      : { data: [] };
+      : Promise.resolve({ data: [] }),
+  ]);
+  const employeeNames = Object.fromEntries(
+    ((employeeRows ?? []) as EmployeeRow[]).map((e) => [e.id, e.full_name ?? 'Tax preparer']),
+  );
 
   const messagesByTicket = (msgRows ?? []).reduce<Record<string, MessageRow[]>>((acc, row) => {
     const msg = row as MessageRow;

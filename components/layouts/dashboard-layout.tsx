@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState, useCallback, useTransition, memo } from 'react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -105,15 +105,7 @@ const CLIENT_ROUTE_ICON: Record<string, LucideIcon> = {
   '/client/tax-organizer': ClipboardList,
 };
 
-function NavTooltip({
-  collapsed,
-  label,
-  children,
-}: {
-  collapsed: boolean;
-  label: string;
-  children: ReactNode;
-}) {
+function NavTooltip({ collapsed, label, children }: { collapsed: boolean; label: string; children: ReactNode }) {
   if (!collapsed) return <>{children}</>;
   return (
     <TooltipPrimitive.Root delayDuration={200}>
@@ -124,6 +116,165 @@ function NavTooltip({
     </TooltipPrimitive.Root>
   );
 }
+
+// ─── Memoized nav sections ────────────────────────────────────────────────────
+// Each section only re-renders when its own props change, not when unrelated
+// state changes (e.g. the other nav sections, or unrelated parent state).
+
+const StageNav = memo(function StageNav({
+  collapsed,
+  expanded,
+  currentStage,
+  baseUrl,
+}: {
+  collapsed: boolean;
+  expanded: boolean;
+  currentStage: string | undefined;
+  baseUrl: string;
+}) {
+  return (
+    <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
+      {expanded && (
+        <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Workflow
+        </p>
+      )}
+      <ul className="space-y-0.5">
+        {STAGES.map((stage) => {
+          const isActive = currentStage === stage.id;
+          const Icon = stage.icon;
+          const href = `${baseUrl}/queues?stage=${stage.id}`;
+          return (
+            <li key={stage.id}>
+              <NavTooltip collapsed={collapsed} label={stage.label}>
+                <Link
+                  href={href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    expanded ? 'px-3' : 'justify-center px-0',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                  {expanded && <span className="truncate">{stage.label}</span>}
+                </Link>
+              </NavTooltip>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+});
+
+const WorkspaceNav = memo(function WorkspaceNav({
+  collapsed,
+  expanded,
+  pathname,
+  items,
+  iconMap,
+  isEmployee,
+}: {
+  collapsed: boolean;
+  expanded: boolean;
+  pathname: string;
+  items: Array<{ href: string; label: string; icon: string }>;
+  iconMap: Record<string, LucideIcon>;
+  isEmployee: boolean;
+}) {
+  return (
+    <nav className={cn('border-t border-sidebar-border py-3', expanded ? 'px-3' : 'px-2')}>
+      {expanded && (
+        <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Workspace
+        </p>
+      )}
+      <ul className="space-y-0.5">
+        {items.map((item) => {
+          const isActive = isEmployee
+            ? item.href === '/employee'
+              ? pathname === '/employee' || pathname === '/employee/'
+              : pathname === item.href || pathname.startsWith(`${item.href}/`)
+            : pathname.startsWith(item.href);
+          const Icon = iconMap[item.icon] ?? LayoutDashboard;
+          return (
+            <li key={item.href}>
+              <NavTooltip collapsed={collapsed} label={item.label}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    expanded ? 'px-3' : 'justify-center px-0',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                  {expanded && <span className="truncate">{item.label}</span>}
+                </Link>
+              </NavTooltip>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+});
+
+const ClientNav = memo(function ClientNav({
+  collapsed,
+  expanded,
+  pathname,
+  items,
+}: {
+  collapsed: boolean;
+  expanded: boolean;
+  pathname: string;
+  items: Array<{ href: string; label: string }>;
+}) {
+  return (
+    <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
+      {expanded && (
+        <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Portal
+        </p>
+      )}
+      <ul className="space-y-0.5">
+        {items.map((item) => {
+          const isActive =
+            item.href === '/client'
+              ? pathname === '/client'
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = CLIENT_ROUTE_ICON[item.href] ?? Home;
+          return (
+            <li key={item.href}>
+              <NavTooltip collapsed={collapsed} label={item.label}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    expanded ? 'px-3' : 'justify-center px-0',
+                    isActive
+                      ? 'bg-[#E0E1DD] text-[#0D1B2A] shadow-sm'
+                      : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
+                  {expanded && <span className="truncate">{item.label}</span>}
+                </Link>
+              </NavTooltip>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+});
+
+// ─── Main layout ──────────────────────────────────────────────────────────────
 
 export function DashboardLayout({
   children,
@@ -137,15 +288,14 @@ export function DashboardLayout({
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
       if (stored === '0') setExpanded(false);
       if (stored === '1') setExpanded(true);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setHydrated(true);
   }, []);
 
@@ -153,17 +303,22 @@ export function DashboardLayout({
     if (!hydrated) return;
     try {
       localStorage.setItem(SIDEBAR_STORAGE_KEY, expanded ? '1' : '0');
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }, [expanded, hydrated]);
 
-  const handleLogout = async () => {
+  // useTransition marks the expand/collapse as non-urgent — browser paints the
+  // button press immediately, then applies the sidebar width change. This is what
+  // fixes the 376ms INP on the collapse button.
+  const toggleExpanded = useCallback(() => {
+    startTransition(() => setExpanded((e) => !e));
+  }, []);
+
+  const handleLogout = useCallback(async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
-  };
+  }, [router]);
 
   const isAdmin = user.role === 'admin';
   const isEmployee = user.role === 'employee';
@@ -171,8 +326,7 @@ export function DashboardLayout({
   const isClient = user.role === 'client';
   const baseUrl = isAdmin ? '/admin' : '/employee';
   const collapsed = !expanded;
-  const sidebarDisplayName =
-    user.name?.trim() || user.email.split('@')[0] || 'User';
+  const sidebarDisplayName = user.name?.trim() || user.email.split('@')[0] || 'User';
   const sidebarInitial = sidebarDisplayName.charAt(0).toUpperCase() || 'U';
 
   return (
@@ -181,7 +335,7 @@ export function DashboardLayout({
         <aside
           className={cn(
             'flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
-            'transition-[width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
+            'transition-[width] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
             expanded ? 'w-[260px]' : 'w-[72px]',
           )}
         >
@@ -204,7 +358,7 @@ export function DashboardLayout({
             </div>
             <button
               type="button"
-              onClick={() => setExpanded((e) => !e)}
+              onClick={toggleExpanded}
               aria-expanded={expanded}
               aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
               className={cn(
@@ -221,167 +375,44 @@ export function DashboardLayout({
           </div>
 
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-            {/* Workflow stages */}
             {isAdminOrEmployee && (
-              <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
-                {expanded && (
-                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Workflow
-                  </p>
-                )}
-                <ul className="space-y-0.5">
-                  {STAGES.map((stage) => {
-                    const isActive = currentStage === stage.id;
-                    const Icon = stage.icon;
-                    const href = `${baseUrl}/queues?stage=${stage.id}`;
-                    const link = (
-                      <Link
-                        href={href}
-                        className={cn(
-                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
-                          expanded ? 'px-3' : 'justify-center px-0',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
-                        )}
-                      >
-                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
-                        {expanded && <span className="truncate">{stage.label}</span>}
-                      </Link>
-                    );
-                    return (
-                      <li key={stage.id}>
-                        <NavTooltip collapsed={collapsed} label={stage.label}>
-                          {link}
-                        </NavTooltip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
+              <StageNav
+                collapsed={collapsed}
+                expanded={expanded}
+                currentStage={currentStage}
+                baseUrl={baseUrl}
+              />
             )}
 
-            {/* Client portal */}
             {isClient && clientSidebarNavigation.length > 0 && (
-              <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
-                {expanded && (
-                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Portal
-                  </p>
-                )}
-                <ul className="space-y-0.5">
-                  {clientSidebarNavigation.map((item) => {
-                    const isActive =
-                      item.href === '/client'
-                        ? pathname === '/client'
-                        : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                    const Icon = CLIENT_ROUTE_ICON[item.href] ?? Home;
-                    const link = (
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
-                          expanded ? 'px-3' : 'justify-center px-0',
-                          isActive
-                            ? 'bg-[#E0E1DD] text-[#0D1B2A] shadow-sm'
-                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
-                        )}
-                      >
-                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
-                        {expanded && <span className="truncate">{item.label}</span>}
-                      </Link>
-                    );
-                    return (
-                      <li key={item.href}>
-                        <NavTooltip collapsed={collapsed} label={item.label}>
-                          {link}
-                        </NavTooltip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
+              <ClientNav
+                collapsed={collapsed}
+                expanded={expanded}
+                pathname={pathname}
+                items={clientSidebarNavigation}
+              />
             )}
 
-            {/* Admin workspace */}
             {isAdmin && adminSidebarNavigation.length > 0 && (
-              <nav className={cn('border-t border-sidebar-border py-3', expanded ? 'px-3' : 'px-2')}>
-                {expanded && (
-                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Workspace
-                  </p>
-                )}
-                <ul className="space-y-0.5">
-                  {adminSidebarNavigation.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
-                    const Icon = ADMIN_ROUTE_ICONS[item.icon] ?? LayoutDashboard;
-                    const link = (
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
-                          expanded ? 'px-3' : 'justify-center px-0',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
-                        )}
-                      >
-                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
-                        {expanded && <span className="truncate">{item.label}</span>}
-                      </Link>
-                    );
-                    return (
-                      <li key={item.href}>
-                        <NavTooltip collapsed={collapsed} label={item.label}>
-                          {link}
-                        </NavTooltip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
+              <WorkspaceNav
+                collapsed={collapsed}
+                expanded={expanded}
+                pathname={pathname}
+                items={adminSidebarNavigation}
+                iconMap={ADMIN_ROUTE_ICONS}
+                isEmployee={false}
+              />
             )}
 
-            {/* Employee workspace */}
             {isEmployee && employeeSidebarNavigation.length > 0 && (
-              <nav className={cn('border-t border-sidebar-border py-3', expanded ? 'px-3' : 'px-2')}>
-                {expanded && (
-                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Workspace
-                  </p>
-                )}
-                <ul className="space-y-0.5">
-                  {employeeSidebarNavigation.map((item) => {
-                    const isActive =
-                      item.href === '/employee'
-                        ? pathname === '/employee' || pathname === '/employee/'
-                        : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                    const Icon = EMPLOYEE_ROUTE_ICONS[item.icon] ?? LayoutDashboard;
-                    const link = (
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
-                          expanded ? 'px-3' : 'justify-center px-0',
-                          isActive
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
-                        )}
-                      >
-                        <Icon className="size-[18px] shrink-0 stroke-[1.75]" />
-                        {expanded && <span className="truncate">{item.label}</span>}
-                      </Link>
-                    );
-                    return (
-                      <li key={item.href}>
-                        <NavTooltip collapsed={collapsed} label={item.label}>
-                          {link}
-                        </NavTooltip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
+              <WorkspaceNav
+                collapsed={collapsed}
+                expanded={expanded}
+                pathname={pathname}
+                items={employeeSidebarNavigation}
+                iconMap={EMPLOYEE_ROUTE_ICONS}
+                isEmployee={true}
+              />
             )}
           </div>
 

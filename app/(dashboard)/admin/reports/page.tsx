@@ -33,16 +33,11 @@ export default async function ReportsPage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
-  const { data: ticketRows } = await supabase
-    .from('tickets')
-    .select('id, stage, due_date, created_at, updated_at, filing_type, assigned_employee_id');
-  const { data: paymentRows } = await supabase
-    .from('payments')
-    .select('ticket_id, amount_cents, status, created_at');
-  const { data: employeeRows } = await supabase
-    .from('profiles')
-    .select('id, full_name, email')
-    .eq('role', 'employee');
+  const [{ data: ticketRows }, { data: paymentRows }, { data: employeeRows }] = await Promise.all([
+    supabase.from('tickets').select('id, stage, due_date, created_at, updated_at, filing_type, assigned_employee_id'),
+    supabase.from('payments').select('ticket_id, amount_cents, status, created_at'),
+    supabase.from('profiles').select('id, full_name, email').eq('role', 'employee'),
+  ]);
 
   const tickets = (ticketRows ?? []) as TicketLite[];
   const payments = (paymentRows ?? []) as PaymentLite[];
