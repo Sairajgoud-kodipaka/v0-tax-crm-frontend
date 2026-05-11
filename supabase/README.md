@@ -1,4 +1,4 @@
-# Supabase migrations (Tax CRM)
+# Supabase migrations
 
 Apply migrations in order from the Supabase SQL editor or CLI:
 
