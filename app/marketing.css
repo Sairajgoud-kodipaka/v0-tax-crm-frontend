@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+.marketing-site {
+  --brand-deep: #0b5c6f;
+  --brand-ocean: #117d87;
+  --brand-mint: #71c89a;
+  --brand-mint-strong: #57bb91;
+  --brand-soft: #eaf7f4;
+  font-family: 'Manrope', sans-serif;
+  scroll-behavior: smooth;
+}
+
+.marketing-site * {
+  box-sizing: border-box;
+}
