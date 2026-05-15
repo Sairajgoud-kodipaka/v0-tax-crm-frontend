@@ -132,7 +132,6 @@ export async function uploadTicketDocumentAction(
   if (
     category === 'client_upload' &&
     role === 'client' &&
-    ticket.stage === '8879-sent' &&
     ticket.assigned_employee_id
   ) {
     const { data: clientProfile } = await supabase
@@ -141,14 +140,32 @@ export async function uploadTicketDocumentAction(
       .eq('id', user.id)
       .maybeSingle();
     const nm = clientProfile?.full_name?.trim() || 'Client';
-    const { error: n8879 } = await supabase.rpc('create_ticket_notification', {
+    const { error: assignedUploadErr } = await supabase.rpc('create_ticket_notification', {
       p_recipient_id: ticket.assigned_employee_id,
       p_ticket_id: ticketId,
       p_type: 'document',
-      p_title: 'Signed Form 8879 uploaded',
-      p_body: `${nm} uploaded signed Form 8879. Ready to file. Case #${ticket.public_ref}.`,
+      p_title: ticket.stage === '8879-sent' ? 'Signed Form 8879 uploaded' : 'Client uploaded documents',
+      p_body:
+        ticket.stage === '8879-sent'
+          ? `${nm} uploaded signed Form 8879. Ready to file. Case #${ticket.public_ref}.`
+          : `${nm} uploaded new documents on Case #${ticket.public_ref}.`,
     });
-    if (n8879) console.error('create_ticket_notification:', n8879.message);
+    if (assignedUploadErr) console.error('create_ticket_notification:', assignedUploadErr.message);
+  }
+
+  if (role === 'employee' || role === 'admin') {
+    const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
+    for (const admin of admins ?? []) {
+      if (admin.id === user.id) continue;
+      const { error: adminDocErr } = await supabase.rpc('create_ticket_notification', {
+        p_recipient_id: admin.id,
+        p_ticket_id: ticketId,
+        p_type: 'document',
+        p_title: 'Ticket documents updated',
+        p_body: `Documents were updated in Case #${ticket.public_ref}.`,
+      });
+      if (adminDocErr) console.error('create_ticket_notification:', adminDocErr.message);
+    }
   }
 
   revalidatePath('/admin/tickets/' + ticketId);

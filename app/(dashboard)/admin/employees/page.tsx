@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
-import { getServerSupabase } from '@/lib/data/tickets-queries';
+import { getTicketAssignmentCountsByEmployee } from '@/lib/data/clients-queries';
+import { getServerSupabase, getSessionUser } from '@/lib/data/tickets-queries';
 import { AddEmployeeForm } from './add-employee-form';
 import { EmployeeList } from './employee-list';
 
@@ -13,7 +14,12 @@ type ProfileRow = {
 };
 
 export default async function EmployeesPage() {
-  const supabase = await getServerSupabase();
+  const [supabase, session, ticketCounts] = await Promise.all([
+    getServerSupabase(),
+    getSessionUser(),
+    getTicketAssignmentCountsByEmployee(),
+  ]);
+
   const { data } = await supabase
     .from('profiles')
     .select('id, full_name, email, role, created_at')
@@ -27,8 +33,11 @@ export default async function EmployeesPage() {
     role: p.role,
     department: 'Tax Operations',
     status: 'active' as const,
+    assignedTicketCount: ticketCounts[p.id]?.total ?? 0,
+    activeTicketCount: ticketCounts[p.id]?.active ?? 0,
   }));
   const activeEmployees = employees.filter((e) => e.status === 'active');
+  const roster = session ? activeEmployees.filter((e) => e.id !== session.id) : activeEmployees;
 
   return (
     <div className="space-y-6">
@@ -54,11 +63,14 @@ export default async function EmployeesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Active Employees ({activeEmployees.length})</CardTitle>
-          <CardDescription>Currently active team members</CardDescription>
+          <CardTitle>Team roster ({roster.length})</CardTitle>
+          <CardDescription>
+            Active staff other than you, with how many tickets they handle as primary preparer. Click a row to review those
+            tickets and stages on Clients.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <EmployeeList employees={activeEmployees} />
+          <EmployeeList employees={roster} />
         </CardContent>
       </Card>
     </div>

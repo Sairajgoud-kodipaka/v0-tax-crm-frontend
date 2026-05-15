@@ -1,5 +1,64 @@
 import { TICKET_STAGES } from './constants';
-import type { Ticket } from './types';
+import type { Ticket, TicketStage } from './types';
+
+/** Tab ids for `/client/cases/[id]?tab=` and case tab UIs (must match client + staff case tab shells). */
+export const CLIENT_CASE_TAB_IDS = [
+  'messages',
+  'organizer',
+  'documents',
+  'drafts',
+  'invoices',
+  'final',
+  'history',
+] as const;
+
+export type ClientCaseTabId = (typeof CLIENT_CASE_TAB_IDS)[number];
+
+export const CLIENT_CASE_TAB_LABELS: Record<ClientCaseTabId, string> = {
+  messages: 'Messages',
+  organizer: 'Tax Organizer',
+  documents: 'My Documents',
+  drafts: 'Tax Drafts',
+  invoices: 'Invoices',
+  final: 'Final Documents',
+  history: 'History',
+};
+
+export function parseClientCaseTabId(value: string | null | undefined): ClientCaseTabId | null {
+  if (!value) return null;
+  return (CLIENT_CASE_TAB_IDS as readonly string[]).includes(value) ? (value as ClientCaseTabId) : null;
+}
+
+/** Map pipeline stage to the tab clients usually need next (deep links / staff “resume” copy). */
+export function suggestedClientCaseTabForStage(stage: TicketStage): ClientCaseTabId {
+  switch (stage) {
+    case 'pending-info':
+      return 'organizer';
+    case 'under-prep':
+      return 'messages';
+    case 'draft-sent':
+    case 'awaiting-approval':
+      return 'drafts';
+    case 'payment-received':
+      return 'invoices';
+    case '8879-sent':
+      return 'documents';
+    case '8879-received':
+    case 'filing-completed':
+    case 'closed':
+      return 'final';
+    default:
+      return 'messages';
+  }
+}
+
+/** Presence sends human tab labels — map back to `?tab=` ids when the client is online. */
+export function clientCaseTabIdFromPresenceLabel(label: string | null | undefined): ClientCaseTabId | null {
+  if (!label?.trim()) return null;
+  const t = label.trim();
+  const hit = (Object.entries(CLIENT_CASE_TAB_LABELS) as [ClientCaseTabId, string][]).find(([, l]) => l === t);
+  return hit ? hit[0] : null;
+}
 
 export function displayTicketRef(ticket: Ticket): string {
   if (ticket.shortCode) return ticket.shortCode;

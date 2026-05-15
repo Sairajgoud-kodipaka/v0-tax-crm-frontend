@@ -6,8 +6,14 @@ import { ChevronLeft } from 'lucide-react';
 import { getTaxOrganizerAnswersAction } from '@/app/actions/organizer';
 import { getSessionUser, getTicketForClientCase } from '@/lib/data/tickets-queries';
 
-export default async function ClientCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function ClientCaseDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const session = await getSessionUser();
   if (!session || session.role !== 'client') notFound();
 
@@ -47,6 +53,7 @@ export default async function ClientCaseDetailPage({ params }: { params: Promise
         viewerUserId={session.id}
         viewerName={session.name}
         viewerRole={session.role}
+        initialTabFromUrl={sp.tab ?? null}
       />
     </div>
   );

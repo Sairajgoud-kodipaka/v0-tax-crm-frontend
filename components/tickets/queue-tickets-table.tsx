@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { TicketUnreadDot } from '@/components/tickets/ticket-unread-dot';
 
 function statusBadgeClass(status: Ticket['status']): string {
   switch (status) {
@@ -64,9 +65,12 @@ export function QueueTicketsTable({
               return (
                 <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/40">
                   <TableCell className="font-mono text-sm font-medium">
-                    <Link href={href} className="text-primary hover:underline">
-                      {displayTicketRef(ticket)}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <TicketUnreadDot ticketId={ticket.id} />
+                      <Link href={href} className="text-primary hover:underline">
+                        {displayTicketRef(ticket)}
+                      </Link>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Link href={href} className="block text-foreground hover:text-primary">

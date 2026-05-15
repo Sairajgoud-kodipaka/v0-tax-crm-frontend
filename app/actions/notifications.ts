@@ -43,3 +43,24 @@ export async function markAllNotificationsReadAction() {
   revalidatePath('/employee/notifications');
   revalidatePath('/client/notifications');
 }
+
+export async function markTicketNotificationsReadAction(ticketId: string) {
+  const supabase = createClient(await cookies());
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('recipient_id', user.id)
+    .eq('ticket_id', ticketId)
+    .eq('is_read', false);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath('/admin/notifications');
+  revalidatePath('/employee/notifications');
+  revalidatePath('/client/notifications');
+}

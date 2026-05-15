@@ -172,3 +172,13 @@
 .chart-legend-swatch {
   background-color: var(--chart-legend-swatch, transparent);
 }
+
+@keyframes unread-badge-enter {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.unread-badge-enter {
+  animation: unread-badge-enter 280ms ease-out 1;
+}

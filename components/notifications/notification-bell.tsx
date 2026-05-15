@@ -27,6 +27,13 @@ function ticketPath(role: UserRole, ticketId: string): string {
   return `/employee/tickets/${ticketId}`;
 }
 
+function ticketPathForNotification(role: UserRole, notification: NotificationRow): string {
+  if (!notification.ticket_id) return notificationsListPath(role);
+  const base = ticketPath(role, notification.ticket_id);
+  // All notifications route to messages tab since preparer notes are now integrated
+  return `${base}?tab=messages`;
+}
+
 function notificationsListPath(role: UserRole): string {
   if (role === 'client') return '/client/notifications';
   if (role === 'admin') return '/admin/notifications';
@@ -104,7 +111,7 @@ export function NotificationBell({ userId, role }: { userId: string; role: UserR
         setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
       }
       setOpen(false);
-      if (n.ticket_id) router.push(ticketPath(role, n.ticket_id));
+      if (n.ticket_id) router.push(ticketPathForNotification(role, n));
       router.refresh();
     });
   };

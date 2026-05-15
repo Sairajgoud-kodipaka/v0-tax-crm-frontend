@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { markTicketThreadReadAction } from '@/app/actions/thread-reads';
 import type { Message } from '@/lib/types';
 
 export type ThreadReadsMap = Record<string, string | null>;
@@ -40,8 +39,8 @@ export function lastOutboundForReadReceipt(
 
 export function useTicketReadReceipts(
   ticketId: string,
-  messages: Message[],
-  viewerId: string,
+  _messages: Message[],
+  _viewerId: string,
 ): ThreadReadsMap {
   const [reads, setReads] = useState<ThreadReadsMap>({});
 
@@ -88,13 +87,6 @@ export function useTicketReadReceipts(
       void supabase.removeChannel(channel);
     };
   }, [ticketId]);
-
-  const sig = useMemo(() => messages.map((m) => m.id).join(','), [messages]);
-
-  useEffect(() => {
-    if (!ticketId || !messages.length) return;
-    void markTicketThreadReadAction(ticketId);
-  }, [ticketId, sig, viewerId]);
 
   return reads;
 }

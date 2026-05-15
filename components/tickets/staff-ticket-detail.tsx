@@ -1,12 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { TICKET_STAGES, STAGE_NAVIGATION } from '@/lib/constants';
 import type { Ticket, UserRole } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { updateStageFormAction } from '@/app/actions/forms';
@@ -14,6 +13,9 @@ import { StaffTicketCaseTabs } from '@/components/tickets/staff-ticket-case-tabs
 import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { formatTicketLastUpdatedLine } from '@/lib/client-ui';
+import { markTicketThreadReadAction } from '@/app/actions/thread-reads';
+import { useAppStore } from '@/lib/store';
+import { markTicketNotificationsReadAction } from '@/app/actions/notifications';
 
 function priorityVariant(priority: string): 'destructive' | 'default' | 'secondary' | 'outline' {
   switch (priority) {
@@ -38,6 +40,7 @@ export function StaffTicketDetail({
   viewerUserId,
   viewerName,
   viewerRole,
+  initialTabFromUrl = null,
 }: {
   ticket: Ticket;
   backHref: string;
@@ -46,8 +49,9 @@ export function StaffTicketDetail({
   viewerUserId: string;
   viewerName: string;
   viewerRole: UserRole;
+  initialTabFromUrl?: string | null;
 }) {
-  const [stageHistoryOpen, setStageHistoryOpen] = useState(false);
+  const markTicketRead = useAppStore((s) => s.markTicketRead);
   const { stage: liveStage, lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,
     ticket.stage,
@@ -60,6 +64,12 @@ export function StaffTicketDetail({
     base.updatedAt = lastUpdatedAt.toISOString();
     return base;
   }, [ticket, liveStage, lastUpdatedAt]);
+
+  useEffect(() => {
+    void Promise.all([markTicketThreadReadAction(ticket.id), markTicketNotificationsReadAction(ticket.id)]).then(() => {
+      markTicketRead(ticket.id);
+    });
+  }, [ticket.id, markTicketRead]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -75,8 +85,7 @@ export function StaffTicketDetail({
           </Button>
         </Link>
         <p className="pt-2 text-sm text-muted-foreground">
-          Same tabbed layout as the client portal — Messages, Tax Organizer (with sections), documents, drafts,
-          invoices, and final documents.
+          Use the Preparer Notes tab for internal team chat, mentions, and note actions.
         </p>
       </div>
 
@@ -129,44 +138,8 @@ export function StaffTicketDetail({
         viewerUserId={viewerUserId}
         viewerName={viewerName}
         viewerRole={viewerRole}
+        initialTabFromUrl={initialTabFromUrl}
       />
-
-      {(ticket.history ?? []).length > 0 && (viewerRole === 'admin' || viewerRole === 'employee') && (
-        <Card>
-          <CardHeader className="pb-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={() => setStageHistoryOpen((open) => !open)}
-            >
-              {stageHistoryOpen ? 'Hide Stage History' : 'Show Stage History'}
-            </Button>
-          </CardHeader>
-          {stageHistoryOpen ? (
-            <CardContent>
-              <div className="max-h-56 space-y-2 overflow-y-auto text-sm">
-                {(ticket.history ?? []).map((entry) => (
-                  <div key={entry.id} className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-medium">{entry.actorName}</span>
-                      <span className="text-muted-foreground">→</span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {entry.fromStage ? TICKET_STAGES[entry.fromStage].label : 'Created'}
-                      </Badge>
-                      <span className="text-muted-foreground">to</span>
-                      <Badge className="text-[10px]">{TICKET_STAGES[entry.toStage].label}</Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{entry.createdAt.toLocaleString()}</p>
-                    {entry.note && <p className="mt-1 text-xs">{entry.note}</p>}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          ) : null}
-        </Card>
-      )}
     </div>
   );
 }

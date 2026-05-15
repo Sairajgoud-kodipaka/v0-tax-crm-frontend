@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import {
   Archive,
+  Bell,
   BadgeCheck,
   BarChart3,
   Briefcase,
@@ -39,9 +40,12 @@ import {
 import { createClient } from '@/utils/supabase/client';
 import type { SessionUser } from '@/lib/session-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { GlobalSearch } from '@/components/search/global-search';
 import { Button } from '@/components/ui/button';
 import { TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/lib/store';
+import { UnreadBadge } from '@/components/ui/unread-badge';
 
 const SIDEBAR_STORAGE_KEY = 'taxcrm-sidebar-expanded';
 
@@ -78,6 +82,7 @@ const ADMIN_ROUTE_ICONS: Record<string, LucideIcon> = {
   briefcase: Briefcase,
   file: FileText,
   form: ClipboardList,
+  bell: Bell,
 };
 
 const EMPLOYEE_ROUTE_ICONS: Record<string, LucideIcon> = {
@@ -92,6 +97,7 @@ const EMPLOYEE_ROUTE_ICONS: Record<string, LucideIcon> = {
   briefcase: Briefcase,
   file: FileText,
   form: ClipboardList,
+  bell: Bell,
 };
 
 const CLIENT_ROUTE_ICON: Record<string, LucideIcon> = {
@@ -126,11 +132,13 @@ const StageNav = memo(function StageNav({
   expanded,
   currentStage,
   baseUrl,
+  stageAttentionCounts,
 }: {
   collapsed: boolean;
   expanded: boolean;
   currentStage: string | undefined;
   baseUrl: string;
+  stageAttentionCounts: Record<string, number>;
 }) {
   const router = useRouter();
   const [isPending, startStageTransition] = useTransition();
@@ -141,7 +149,7 @@ const StageNav = memo(function StageNav({
   }, [isPending]);
 
   return (
-    <nav className={cn('flex-1 py-3', expanded ? 'px-3' : 'px-2')}>
+    <nav className={cn('flex-1 border-t border-sidebar-border py-3', expanded ? 'px-3' : 'px-2')}>
       {expanded && (
         <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           Workflow
@@ -153,6 +161,7 @@ const StageNav = memo(function StageNav({
           const isActive = effectiveStage === stage.id;
           const isLoading = isPending && pendingStage === stage.id;
           const Icon = stage.icon;
+          const attentionCount = stageAttentionCounts[stage.id] ?? 0;
           return (
             <li key={stage.id}>
               <NavTooltip collapsed={collapsed} label={stage.label}>
@@ -165,7 +174,7 @@ const StageNav = memo(function StageNav({
                     });
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    'relative w-full flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -175,11 +184,60 @@ const StageNav = memo(function StageNav({
                 >
                   <Icon className={cn('size-[18px] shrink-0 stroke-[1.75]', isLoading && 'animate-pulse')} />
                   {expanded && <span className="truncate">{stage.label}</span>}
+                  {attentionCount > 0 ? (
+                    <UnreadBadge
+                      count={attentionCount}
+                      className="absolute -right-1 -top-1"
+                    />
+                  ) : null}
                 </button>
               </NavTooltip>
             </li>
           );
         })}
+      </ul>
+    </nav>
+  );
+});
+
+const NotificationsNav = memo(function NotificationsNav({
+  collapsed,
+  expanded,
+  pathname,
+  href,
+  notificationCount,
+}: {
+  collapsed: boolean;
+  expanded: boolean;
+  pathname: string;
+  href: string;
+  notificationCount: number;
+}) {
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <nav className={cn('py-3', expanded ? 'px-3' : 'px-2')}>
+      <ul className="space-y-0.5">
+        <li>
+          <NavTooltip collapsed={collapsed} label="Notifications">
+            <Link
+              href={href}
+              className={cn(
+                'relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                expanded ? 'px-3' : 'justify-center px-0',
+                isActive
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-sidebar-foreground hover:bg-[#E4E2E2] hover:text-foreground',
+              )}
+            >
+              <Bell className="size-[18px] shrink-0 stroke-[1.75]" />
+              {expanded && <span className="truncate">Notifications</span>}
+              {notificationCount > 0 ? (
+                <UnreadBadge count={notificationCount} showCountWhenOne className="absolute -right-1 -top-1" />
+              ) : null}
+            </Link>
+          </NavTooltip>
+        </li>
       </ul>
     </nav>
   );
@@ -221,7 +279,7 @@ const WorkspaceNav = memo(function WorkspaceNav({
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    'relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -305,6 +363,10 @@ export function DashboardLayout({
   const [expanded, setExpanded] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [, startTransition] = useTransition();
+  const [stageAttentionCounts, setStageAttentionCounts] = useState<Record<string, number>>({});
+  const [sidebarNotificationCount, setSidebarNotificationCount] = useState(0);
+  const unreadByStage = useAppStore((s) => s.unreadByStage);
+  const setUnreadSnapshot = useAppStore((s) => s.setUnreadSnapshot);
 
   useEffect(() => {
     try {
@@ -341,32 +403,83 @@ export function DashboardLayout({
   const isAdminOrEmployee = user.role === 'admin' || user.role === 'employee';
   const isClient = user.role === 'client';
   const baseUrl = isAdmin ? '/admin' : '/employee';
-  const collapsed = !expanded;
+  // Keep SSR and the first client paint identical; apply localStorage preference after mount.
+  const showExpanded = hydrated ? expanded : true;
+  const collapsed = !showExpanded;
+  const workspaceItems = isAdmin ? adminSidebarNavigation : employeeSidebarNavigation;
+  const notificationsHref = isAdmin ? '/admin/notifications' : '/employee/notifications';
   const sidebarDisplayName = user.name?.trim() || user.email.split('@')[0] || 'User';
   const sidebarInitial = sidebarDisplayName.charAt(0).toUpperCase() || 'U';
+
+  useEffect(() => {
+    if (!isAdminOrEmployee) return;
+    let cancelled = false;
+    const supabase = createClient();
+
+    const loadSidebarCounts = async () => {
+      const [ticketsRes, notifRes] = await Promise.all([
+        supabase.from('tickets').select('id, stage').neq('stage', 'closed'),
+        supabase
+          .from('notifications')
+          .select('id, ticket_id')
+          .eq('recipient_id', user.id)
+          .eq('is_read', false),
+      ]);
+      if (cancelled) return;
+      const stageByTicket = new Map(
+        ((ticketsRes.data ?? []) as Array<{ id: string; stage: string }>).map((ticket) => [ticket.id, ticket.stage]),
+      );
+      const unreadTicketIds = new Set(
+        ((notifRes.data ?? []) as Array<{ id: string; ticket_id: string | null }>)
+          .map((row) => row.ticket_id)
+          .filter((ticketId): ticketId is string => Boolean(ticketId)),
+      );
+      const entries = Array.from(unreadTicketIds).map((ticketId) => ({
+        ticketId,
+        stage: stageByTicket.get(ticketId) ?? 'pending-info',
+        unread: true,
+      }));
+      setUnreadSnapshot(entries);
+      setSidebarNotificationCount((notifRes.data ?? []).length);
+    };
+
+    void loadSidebarCounts();
+    const interval = setInterval(() => {
+      void loadSidebarCounts();
+    }, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAdminOrEmployee, user.id, setUnreadSnapshot]);
+
+  useEffect(() => {
+    setStageAttentionCounts(unreadByStage);
+  }, [unreadByStage]);
 
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex h-screen bg-background">
         <aside
+          suppressHydrationWarning
           className={cn(
             'flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
-            'transition-[width] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
-            expanded ? 'w-[260px]' : 'w-[72px]',
+            hydrated && 'transition-[width] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
+            showExpanded ? 'w-[260px]' : 'w-[72px]',
           )}
         >
           {/* Brand + collapse */}
           <div
             className={cn(
               'flex shrink-0 items-center gap-3 border-b border-sidebar-border py-3',
-              expanded ? 'px-4' : 'flex-col gap-3 px-2 pt-4',
+              showExpanded ? 'px-4' : 'flex-col gap-3 px-2 pt-4',
             )}
           >
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-1 ring-black/5">
                 <span className="text-sm font-bold tracking-tight">{sidebarInitial}</span>
               </div>
-              {expanded && (
+              {showExpanded && (
                 <span className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
                   {sidebarDisplayName}
                 </span>
@@ -379,10 +492,10 @@ export function DashboardLayout({
               aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
               className={cn(
                 'flex size-9 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-background/80 text-muted-foreground shadow-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                expanded ? '' : 'mx-auto',
+                showExpanded ? '' : 'mx-auto',
               )}
             >
-              {expanded ? (
+              {showExpanded ? (
                 <ChevronsLeft className="size-[18px] stroke-[1.75]" />
               ) : (
                 <ChevronsRight className="size-[18px] stroke-[1.75]" />
@@ -392,40 +505,51 @@ export function DashboardLayout({
 
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
             {isAdminOrEmployee && (
+              <NotificationsNav
+                collapsed={collapsed}
+                expanded={showExpanded}
+                pathname={pathname}
+                href={notificationsHref}
+                notificationCount={sidebarNotificationCount}
+              />
+            )}
+
+            {isAdminOrEmployee && (
               <StageNav
                 collapsed={collapsed}
-                expanded={expanded}
+                expanded={showExpanded}
                 currentStage={currentStage}
                 baseUrl={baseUrl}
-                />
+                stageAttentionCounts={stageAttentionCounts}
+              />
             )}
 
             {isClient && clientSidebarNavigation.length > 0 && (
               <ClientNav
                 collapsed={collapsed}
-                expanded={expanded}
+                expanded={showExpanded}
                 pathname={pathname}
                 items={clientSidebarNavigation}
               />
             )}
 
-            {isAdmin && adminSidebarNavigation.length > 0 && (
+            {isAdmin && workspaceItems.length > 0 && (
               <WorkspaceNav
                 collapsed={collapsed}
-                expanded={expanded}
+                expanded={showExpanded}
                 pathname={pathname}
-                items={adminSidebarNavigation}
+                items={workspaceItems}
                 iconMap={ADMIN_ROUTE_ICONS}
                 isEmployee={false}
               />
             )}
 
-            {isEmployee && employeeSidebarNavigation.length > 0 && (
+            {isEmployee && workspaceItems.length > 0 && (
               <WorkspaceNav
                 collapsed={collapsed}
-                expanded={expanded}
+                expanded={showExpanded}
                 pathname={pathname}
-                items={employeeSidebarNavigation}
+                items={workspaceItems}
                 iconMap={EMPLOYEE_ROUTE_ICONS}
                 isEmployee={true}
               />
@@ -446,14 +570,16 @@ export function DashboardLayout({
                 )}
               >
                 <LogOut className="size-[18px] shrink-0 stroke-[1.75]" />
-                {expanded && <span>{isClient ? 'Sign out' : 'Logout'}</span>}
+                {showExpanded && <span>{isClient ? 'Sign out' : 'Logout'}</span>}
               </Button>
             </NavTooltip>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            {isAdminOrEmployee && <GlobalSearch userRole={user.role} />}
+            {isClient && <div />}
             <NotificationBell userId={user.id} role={user.role} />
           </header>
           <main className="min-h-0 flex-1 overflow-auto p-6 text-foreground">{children}</main>

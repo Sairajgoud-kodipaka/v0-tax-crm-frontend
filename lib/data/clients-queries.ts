@@ -14,6 +14,17 @@ export type ClientDirectoryRow = {
   ticket_count: number;
 };
 
+export type EmployeeClientTicketRow = {
+  ticket_id: string;
+  ticket_ref: string;
+  client_id: string;
+  client_name: string;
+  stage: string;
+  status: string;
+  assigned_since: string;
+  last_activity: string;
+};
+
 type ClientJoinRow = {
   profile_id: string;
   assigned_employee_id: string | null;
@@ -111,4 +122,77 @@ export async function listClientDirectory(options: {
     created_at: r.created_at,
     ticket_count: ticketCount.get(r.profile_id) ?? 0,
   }));
+}
+
+export async function listEmployeeClientTickets(employeeId: string): Promise<EmployeeClientTicketRow[]> {
+  const supabase = await getServerSupabase();
+  const { data: ticketRows, error } = await supabase
+    .from('tickets')
+    .select('id, public_ref, client_id, stage, status, created_at, updated_at, assigned_employee_id')
+    .eq('assigned_employee_id', employeeId)
+    .order('updated_at', { ascending: false });
+  if (error || !ticketRows) return [];
+
+  const clientIds = [...new Set(ticketRows.map((t) => t.client_id).filter(Boolean) as string[])];
+  const { data: clientProfiles } = clientIds.length
+    ? await supabase.from('profiles').select('id, full_name').in('id', clientIds)
+    : { data: [] as Array<{ id: string; full_name: string | null }> };
+  const clientMap: Record<string, string> = {};
+  for (const p of (clientProfiles ?? []) as Array<{ id: string; full_name: string | null }>) {
+    clientMap[p.id] = p.full_name?.trim() || 'Client';
+  }
+
+  return (ticketRows as Array<{
+    id: string;
+    public_ref: string | null;
+    client_id: string;
+    stage: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  }>).map((row) => ({
+    ticket_id: row.id,
+    ticket_ref: row.public_ref ?? row.id.slice(0, 8),
+    client_id: row.client_id,
+    client_name: clientMap[row.client_id] ?? 'Client',
+    stage: row.stage,
+    status: row.status,
+    assigned_since: row.created_at,
+    last_activity: row.updated_at,
+  }));
+}
+
+/** Counts tickets where `assigned_employee_id` is set (primary handler in this app). */
+export type StaffTicketAssignmentCounts = {
+  total: number;
+  /** Tickets whose status is not `completed` (still in the preparer’s pipeline). */
+  active: number;
+};
+
+/** One DB read; aggregate in memory. Used for admin team roster. */
+export async function getTicketAssignmentCountsByEmployee(): Promise<Record<string, StaffTicketAssignmentCounts>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.from('tickets').select('assigned_employee_id, status').not('assigned_employee_id', 'is', null);
+  if (error || !data) return {};
+
+  const map: Record<string, StaffTicketAssignmentCounts> = {};
+  for (const row of data as Array<{ assigned_employee_id: string; status: string }>) {
+    const id = row.assigned_employee_id;
+    if (!map[id]) map[id] = { total: 0, active: 0 };
+    map[id].total += 1;
+    if (row.status !== 'completed') map[id].active += 1;
+  }
+  return map;
+}
+
+/** Admins + employees for “view by staff member” switchers (not the same as preparer-only lists). */
+export async function listStaffProfilesForAdminSwitcher(): Promise<Array<{ id: string; full_name: string | null }>> {
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('role', ['admin', 'employee'])
+    .order('full_name', { ascending: true, nullsFirst: false });
+  if (error) return [];
+  return (data ?? []) as Array<{ id: string; full_name: string | null }>;
 }

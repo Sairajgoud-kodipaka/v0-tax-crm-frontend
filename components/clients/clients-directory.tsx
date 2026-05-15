@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { updateClientRowAction } from '@/app/actions/clients';
 import type { ClientDirectoryRow } from '@/lib/data/clients-queries';
@@ -31,7 +33,9 @@ export function ClientsDirectory(props: {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Search &amp; filters</CardTitle>
-          <CardDescription>Name or email contains your text; filter by assigned preparer or unassigned only.</CardDescription>
+          <CardDescription>
+            Preparer filter applies as soon as you change it. Search applies when you press Enter or leave the search field.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -39,7 +43,14 @@ export function ClientsDirectory(props: {
               <label className="text-xs font-medium text-muted-foreground" htmlFor="cq">
                 Search
               </label>
-              <Input id="cq" name="q" type="search" placeholder="Name or email" defaultValue={initialQ} />
+              <Input
+                id="cq"
+                name="q"
+                type="search"
+                placeholder="Name or email"
+                defaultValue={initialQ}
+                onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+              />
             </div>
             <div className="min-w-[200px] space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="cass">
@@ -50,6 +61,7 @@ export function ClientsDirectory(props: {
                 name="assigned"
                 defaultValue={initialAssigned}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onChange={(e) => e.currentTarget.form?.requestSubmit()}
               >
                 <option value="all">All clients</option>
                 <option value="unassigned">Unassigned only</option>
@@ -60,9 +72,6 @@ export function ClientsDirectory(props: {
                 ))}
               </select>
             </div>
-            <Button type="submit" variant="secondary">
-              Apply
-            </Button>
           </form>
         </CardContent>
       </Card>
@@ -109,6 +118,14 @@ export function ClientsDirectory(props: {
                         </option>
                       ))}
                     </select>
+                    {row.assigned_employee_id ? (
+                      <Link
+                        href={`${basePath}/clients?employeeView=${encodeURIComponent(row.assigned_employee_id)}`}
+                        className="mt-1 block text-xs text-primary underline-offset-4 hover:underline"
+                      >
+                        View {row.assignee_name?.trim() || 'preparer'} clients
+                      </Link>
+                    ) : null}
                   </TableCell>
                   <TableCell className="max-w-[14rem] whitespace-normal align-top">
                     <textarea

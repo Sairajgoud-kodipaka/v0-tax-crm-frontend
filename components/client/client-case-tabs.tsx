@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { formatDistanceToNowStrict } from 'date-fns';
 import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { displayTicketRef, formatTicketLastUpdatedLine } from '@/lib/client-ui';
+import { usePathname, useRouter } from 'next/navigation';
+import { displayTicketRef, formatTicketLastUpdatedLine, parseClientCaseTabId, CLIENT_CASE_TAB_LABELS, type ClientCaseTabId } from '@/lib/client-ui';
+import { TICKET_STAGES } from '@/lib/constants';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
   sendClientMessageFormAction,
@@ -35,7 +37,7 @@ import {
   ticketCasePrimaryTabsListClassName,
 } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
-import { useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
+import { hasReadMessage, useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import { useTicketHistoryRealtime } from '@/hooks/use-ticket-history-realtime';
 import { TicketHistory } from '@/components/tickets/ticket-history';
@@ -55,6 +57,17 @@ function ticketTitleLine(ticket: ReturnType<typeof hydrateTicket>): string {
 
 function ticketHeaderTitle(ref: string, ticket: ReturnType<typeof hydrateTicket>): string {
   return `Ticket #${ref} - ${ticketTitleLine(ticket)}`;
+}
+
+function relativeSeenLine(date: Date): string {
+  const diffMs = Date.now() - date.getTime();
+  const min = 60_000;
+  const hr = 60 * min;
+  if (diffMs < min) return 'Seen just now';
+  if (diffMs < hr) return `Seen ${Math.max(1, Math.round(diffMs / min))} min ago`;
+  if (diffMs < 24 * hr) return `Seen ${Math.max(1, Math.round(diffMs / hr))} hours ago`;
+  if (diffMs < 48 * hr) return 'Seen yesterday';
+  return `Seen ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
 }
 
 function clientStageStatusBannerText(stage: TicketStage): string {
@@ -90,6 +103,7 @@ export function ClientCaseTabs({
   viewerUserId,
   viewerName,
   viewerRole = 'client',
+  initialTabFromUrl = null,
 }: {
   ticketRaw: Record<string, unknown>;
   ticketActivities?: Record<string, unknown>[];
@@ -97,6 +111,8 @@ export function ClientCaseTabs({
   viewerUserId: string;
   viewerName: string;
   viewerRole?: UserRole;
+  /** From `/client/cases/[id]?tab=` — deep link & “resume” entry points. */
+  initialTabFromUrl?: string | null;
 }) {
   const caseTabs = [
     ['messages', 'Messages'],
@@ -106,13 +122,18 @@ export function ClientCaseTabs({
     ['invoices', 'Invoices'],
     ['final', 'Final Documents'],
     ['history', 'History'],
-  ] as const;
+  ] as const satisfies ReadonlyArray<readonly [ClientCaseTabId, string]>;
+  const pathname = usePathname();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<(typeof caseTabs)[number][0]>('messages');
+  const [activeTab, setActiveTab] = useState<ClientCaseTabId>(
+    () => parseClientCaseTabId(initialTabFromUrl) ?? 'messages',
+  );
+  const [resumePrompt, setResumePrompt] = useState<{ tab: ClientCaseTabId; label: string } | null>(null);
   const activeTabLabel =
     caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
   const currentPageLabel = activeTabLabel;
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
+  const tabStorageKey = useMemo(() => `taxcrm:clientCaseLastTab:${ticket.id}`, [ticket.id]);
   const { lastUpdatedAt } = useTicketStageRealtime(
     ticket.id,
     ticket.stage,
@@ -135,6 +156,14 @@ export function ClientCaseTabs({
   const historyActivities = useTicketHistoryRealtime(ticket.id, activitiesInitial);
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
+  const messagesById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
+  const latestSeenByUser = useMemo(() => {
+    const map: Record<string, Date> = {};
+    for (const m of messages) {
+      map[m.senderId] = m.createdAt;
+    }
+    return map;
+  }, [messages]);
   const { onlineOthers, typingHint, notifyTyping } = useTicketPresenceTyping(
     ticket.id,
     viewerUserId,
@@ -171,6 +200,65 @@ export function ClientCaseTabs({
     setUploading(false);
   }, [ticket.documents.length, uploading]);
 
+  const handleCaseTabChange = useCallback(
+    (value: string) => {
+      const v = parseClientCaseTabId(value);
+      if (!v) return;
+      setActiveTab(v);
+      setResumePrompt((prev) => (prev?.tab === v ? null : prev));
+      try {
+        localStorage.setItem(tabStorageKey, v);
+      } catch {
+        /* ignore */
+      }
+      const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      qs.set('tab', v);
+      router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
+    },
+    [pathname, router, tabStorageKey],
+  );
+
+  useEffect(() => {
+    const fromServer = parseClientCaseTabId(initialTabFromUrl);
+    if (fromServer) {
+      setActiveTab(fromServer);
+      try {
+        localStorage.setItem(tabStorageKey, fromServer);
+      } catch {
+        /* ignore */
+      }
+      setResumePrompt(null);
+      return;
+    }
+    try {
+      const lsTab = parseClientCaseTabId(localStorage.getItem(tabStorageKey));
+      if (lsTab && lsTab !== 'messages') {
+        setResumePrompt({ tab: lsTab, label: CLIENT_CASE_TAB_LABELS[lsTab] });
+      } else {
+        setResumePrompt(null);
+      }
+    } catch {
+      setResumePrompt(null);
+    }
+  }, [ticket.id, initialTabFromUrl, tabStorageKey]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const t = parseClientCaseTabId(new URL(window.location.href).searchParams.get('tab'));
+      if (t) {
+        setActiveTab(t);
+        try {
+          localStorage.setItem(tabStorageKey, t);
+        } catch {
+          /* ignore */
+        }
+        setResumePrompt(null);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [tabStorageKey]);
+
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <TicketDetailDataRefresh ticketId={ticket.id} />
@@ -191,14 +279,32 @@ export function ClientCaseTabs({
       </div>
 
       {viewerRole === 'client' ? (
-        <div className="border-b border-border bg-muted/35 px-4 py-3 sm:px-6">
+        <div className="space-y-2 border-b border-border bg-muted/35 px-4 py-3 sm:px-6">
           <p className="text-sm leading-relaxed text-foreground">
-            {clientStageStatusBannerText(ticket.stage)}
+            <span className="font-medium text-foreground">Case stage:</span>{' '}
+            {TICKET_STAGES[ticket.stage]?.label ?? ticket.stage}
+            {TICKET_STAGES[ticket.stage]?.description ? (
+              <span className="text-muted-foreground"> — {TICKET_STAGES[ticket.stage]?.description}</span>
+            ) : null}
           </p>
+          <p className="text-sm leading-relaxed text-foreground">{clientStageStatusBannerText(ticket.stage)}</p>
+          {resumePrompt ? (
+            <p className="text-sm leading-relaxed text-foreground">
+              You paused on <span className="font-medium">{resumePrompt.label}</span>.{' '}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => handleCaseTabChange(resumePrompt.tab)}
+              >
+                Click here to resume
+              </button>{' '}
+              where you left off.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as (typeof caseTabs)[number][0])} className="gap-0">
+      <Tabs value={activeTab} onValueChange={handleCaseTabChange} className="gap-0">
         <TabsList className={ticketCasePrimaryTabsListClassName}>
           {caseTabs.map(([id, label]) => (
             <TabsTrigger key={id} value={id} className={primaryTrigger}>
@@ -226,25 +332,39 @@ export function ClientCaseTabs({
                     No messages yet. Your conversation with the team will appear here.
                   </p>
                 ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        'rounded-lg border px-4 py-3 text-sm',
-                        msg.senderId === ticket.clientId
-                          ? 'ml-8 border-primary/30 bg-primary/5'
-                          : 'mr-8 border-border bg-muted/40',
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-foreground">{msg.senderName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {msg.createdAt.toLocaleDateString()}
-                        </span>
+                  messages.map((msg) => {
+                    const latestSeen = latestSeenByUser[msg.senderId];
+                    const isUnreadInbound = msg.senderId !== viewerUserId && !hasReadMessage(msg, reads[viewerUserId], messagesById);
+                    const isOutbound = msg.senderId === viewerUserId;
+                    const seenByOther =
+                      isOutbound &&
+                      Object.keys(reads)
+                        .filter((uid) => uid !== viewerUserId)
+                        .some((uid) => hasReadMessage(msg, reads[uid], messagesById));
+                    return (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          'rounded-lg border px-4 py-3 text-sm',
+                          msg.senderId === ticket.clientId
+                            ? 'ml-8 border-primary/30 bg-primary/5'
+                            : 'mr-8 border-border bg-muted/40',
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <span className="font-medium text-foreground">{msg.senderName}</span>
+                            {latestSeen ? <p className="text-[11px] text-muted-foreground">{relativeSeenLine(latestSeen)}</p> : null}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {msg.createdAt.toLocaleDateString()} {isOutbound ? (seenByOther ? '✓✓' : '✓') : ''}
+                            {isUnreadInbound ? <span className="ml-1 inline-block size-2 rounded-full bg-blue-500" /> : null}
+                          </span>
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-foreground">{msg.content}</p>
                       </div>
-                      <p className="mt-2 whitespace-pre-wrap text-foreground">{msg.content}</p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>

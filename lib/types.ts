@@ -36,6 +36,8 @@ export type ActivityAction =
   | 'message_sent'
   | 'organizer_updated'
   | 'draft_sent'
+  | 'draft_approved'
+  | 'draft_rejected'
   | 'final_document_available'
   | 'payment_processed'
   | 'invoice_created';
