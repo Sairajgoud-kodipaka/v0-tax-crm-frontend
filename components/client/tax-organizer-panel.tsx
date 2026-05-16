@@ -529,7 +529,7 @@ export function TaxOrganizerPanel(props: TaxOrganizerPanelProps = {}) {
       </div>
 
       {/* Form content */}
-      <div className="bg-muted/30 p-4 sm:p-6">
+      <div className="bg-muted/30 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
         <div className="mx-auto max-w-5xl rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
           {organizerCompletePrompt && onNavigatePastLastSection ? (
             <div

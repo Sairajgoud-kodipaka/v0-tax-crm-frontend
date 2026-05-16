@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { removeSupabaseChannelByName } from '@/lib/supabase-realtime';
 import type { UserRole } from '@/lib/types';
+
+export type TicketPresenceTypingState = {
+  onlineOthers: { id: string; name: string }[];
+  typingHint: string | null;
+  clientCurrentTab: string | null;
+  clientOnline: boolean;
+  notifyTyping: () => void;
+};
 
 type OnlinePeer = { id: string; name: string };
 
@@ -31,7 +40,10 @@ export function useTicketPresenceTyping(
     if (!ticketId || !viewerId) return;
 
     const supabase = createClient();
-    const channel = supabase.channel(`thread-presence:${ticketId}`, {
+    const channelName = `thread-presence:${ticketId}`;
+    removeSupabaseChannelByName(supabase, channelName);
+
+    const channel = supabase.channel(channelName, {
       config: {
         presence: { key: viewerId },
         broadcast: { self: true },

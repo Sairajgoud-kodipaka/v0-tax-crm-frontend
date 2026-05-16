@@ -1,7 +1,7 @@
 'use client';
 
 import type { Message } from '@/lib/types';
-import { formatMessageTime } from '@/lib/message-ui';
+import { formatBubbleTime } from '@/lib/message-ui';
 import { cn } from '@/lib/utils';
 
 export function ClientChatBubble({
@@ -35,7 +35,9 @@ export function ClientChatBubble({
             isOutbound ? 'justify-end text-primary-foreground/70' : 'text-muted-foreground',
           )}
         >
-          <time dateTime={msg.createdAt.toISOString()}>{formatMessageTime(msg.createdAt)}</time>
+          <time dateTime={msg.createdAt.toISOString()} title={msg.createdAt.toLocaleString()}>
+            {formatBubbleTime(msg.createdAt)}
+          </time>
           {isOutbound ? <span>{seenByOther ? '· Read' : '· Sent'}</span> : null}
           {isUnread ? <span className="size-1.5 shrink-0 rounded-full bg-blue-500" aria-label="Unread" /> : null}
         </div>

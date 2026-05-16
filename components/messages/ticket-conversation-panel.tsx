@@ -18,11 +18,13 @@ export function TicketConversationPanel({
   status,
   children,
   composer,
+  beforeComposer,
   className,
 }: {
   status?: ReactNode;
   children: ReactNode;
   composer: ReactNode;
+  beforeComposer?: ReactNode;
   className?: string;
 }) {
   return (
@@ -31,6 +33,7 @@ export function TicketConversationPanel({
       <ScrollArea className="h-[min(440px,56vh)] min-h-[240px]">
         <div className="flex flex-col gap-1.5 px-3 py-3">{children}</div>
       </ScrollArea>
+      {beforeComposer}
       <div className="border-t border-border/80 bg-card/40 px-3 py-2">{composer}</div>
     </div>
   );

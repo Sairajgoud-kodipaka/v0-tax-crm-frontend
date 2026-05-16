@@ -459,11 +459,14 @@ export function DashboardLayout({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-screen bg-background">
+      <div
+        data-dashboard-shell
+        className="flex h-dvh max-h-dvh overflow-hidden bg-background"
+      >
         <aside
           suppressHydrationWarning
           className={cn(
-            'flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
+            'flex h-full max-h-full min-h-0 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
             hydrated && 'transition-[width] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
             showExpanded ? 'w-[260px]' : 'w-[72px]',
           )}
@@ -576,13 +579,15 @@ export function DashboardLayout({
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {isAdminOrEmployee && <GlobalSearch userRole={user.role} />}
             {isClient && <div />}
             <NotificationBell userId={user.id} role={user.role} />
           </header>
-          <main className="min-h-0 flex-1 overflow-auto p-6 text-foreground">{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 pb-6 text-foreground sm:p-6">
+            {children}
+          </main>
         </div>
       </div>
     </TooltipProvider>

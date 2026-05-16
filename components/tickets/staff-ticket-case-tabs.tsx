@@ -5,7 +5,19 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
-import { clientStatusPresentation, displayTicketRef, formatTicketLastUpdatedLine, clientCaseTabIdFromPresenceLabel, CLIENT_CASE_TAB_LABELS, parseClientCaseTabId, suggestedClientCaseTabForStage, type ClientCaseTabId } from '@/lib/client-ui';
+import {
+  clientStatusPresentation,
+  displayTicketRef,
+  formatTicketLastUpdatedLine,
+  clientCaseTabIdFromPresenceLabel,
+  CLIENT_CASE_TAB_LABELS,
+  CLIENT_VISIBLE_CASE_TAB_IDS,
+  parseVisibleClientCaseTabId,
+  parseClientCaseTabId,
+  isMessagesTabDeepLink,
+  suggestedClientCaseTabForStage,
+  type ClientVisibleCaseTabId,
+} from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
   staffUploadDraftFormAction,
@@ -21,9 +33,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { StaffChatBubble } from '@/components/messages/staff-chat-bubble';
-import { StaffMessageComposer } from '@/components/messages/staff-message-composer';
-import { TicketConversationPanel } from '@/components/messages/ticket-conversation-panel';
+import { InternalNotesLauncherButton } from '@/components/messages/internal-notes-launcher-button';
+import { MessagesLauncherButton } from '@/components/messages/messages-launcher-button';
+import { StaffTicketMessaging } from '@/components/messages/staff-ticket-messaging';
+import type { StaffMessagesTab } from '@/components/messages/staff-tabbed-messages-dialog';
 import {
   Table,
   TableBody,
@@ -40,7 +53,7 @@ import {
   ticketCasePrimaryTabsListClassName,
 } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
-import { hasReadMessage, useTicketReadReceipts, readReceiptLabel } from '@/hooks/use-ticket-read-receipts';
+import { hasReadMessage, useTicketReadReceipts } from '@/hooks/use-ticket-read-receipts';
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import type { UserRole, TicketActivity } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
@@ -60,7 +73,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { STAGE_NAVIGATION, TICKET_STAGES } from '@/lib/constants';
+import { TICKET_STAGES } from '@/lib/constants';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
@@ -102,18 +115,17 @@ export function StaffTicketCaseTabs({
   viewerRole: UserRole;
   initialTabFromUrl?: string | null;
 }) {
-  const caseTabs = [
-    ['messages', 'Messages'],
-    ['organizer', 'Tax Organizer'],
-    ['documents', 'My Documents'],
-    ['drafts', 'Tax Drafts'],
-    ['invoices', 'Invoices'],
-    ['final', 'Final Documents'],
-    ['history', 'History'],
-  ] as const satisfies ReadonlyArray<readonly [ClientCaseTabId, string]>;
+  const caseTabs = CLIENT_VISIBLE_CASE_TAB_IDS.map(
+    (id) => [id, CLIENT_CASE_TAB_LABELS[id]] as const,
+  );
   const pathname = usePathname();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<ClientCaseTabId>(() => parseClientCaseTabId(initialTabFromUrl) ?? 'messages');
+  const [clientMessagesDialogOpen, setClientMessagesDialogOpen] = useState(() =>
+    isMessagesTabDeepLink(initialTabFromUrl),
+  );
+  const [activeTab, setActiveTab] = useState<ClientVisibleCaseTabId>(
+    () => parseVisibleClientCaseTabId(initialTabFromUrl) ?? 'organizer',
+  );
   const draftUploadFormRef = useRef<HTMLFormElement | null>(null);
   const draftUploadInputRef = useRef<HTMLInputElement | null>(null);
   const invoiceUploadFormRef = useRef<HTMLFormElement | null>(null);
@@ -128,12 +140,7 @@ export function StaffTicketCaseTabs({
   const [rejectReasonOpen, setRejectReasonOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [reviewingDraftId, setReviewingDraftId] = useState<string | null>(null);
-  const [internalBody, setInternalBody] = useState('');
-  const [mentionOpen, setMentionOpen] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [mentionIndex, setMentionIndex] = useState(0);
-  const [pendingNoteAction, startPendingNoteAction] = useTransition();
-  const [internalMode, setInternalMode] = useState(false);
+  const [messagesTab, setMessagesTab] = useState<StaffMessagesTab>('client');
   const ticket = useMemo(() => hydrateTicket(ticketRaw), [ticketRaw]);
   const ref = displayTicketRef(ticket);
   const status = clientStatusPresentation(ticket);
@@ -171,36 +178,28 @@ export function StaffTicketCaseTabs({
     return map;
   }, [historyActivities]);
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
-  const activeTabLabel =
-    caseTabs.find(([id]) => id === activeTab)?.[1] ?? 'Messages';
-  const currentPageLabel = activeTabLabel;
+  const activeTabLabel = CLIENT_CASE_TAB_LABELS[activeTab];
+  const currentPageLabel = clientMessagesDialogOpen ? CLIENT_CASE_TAB_LABELS.messages : activeTabLabel;
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
   const messagesById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
   const clientMessages = useMemo(() => messages.filter((m) => !m.isInternal), [messages]);
   const internalMessages = useMemo(() => messages.filter((m) => m.isInternal), [messages]);
-  const preparerMentionCandidates = useMemo(() => {
-    const options = new Map<string, { id: string; name: string }>();
-    for (const m of internalMessages) {
-      if (m.senderRole !== 'admin' && m.senderRole !== 'employee') continue;
-      options.set(m.senderId, { id: m.senderId, name: m.senderName });
-    }
-    options.set(viewerUserId, { id: viewerUserId, name: viewerName });
-    return Array.from(options.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [internalMessages, viewerName, viewerUserId]);
-  const filteredMentionCandidates = useMemo(() => {
-    if (!mentionQuery.trim()) return preparerMentionCandidates;
-    const q = mentionQuery.trim().toLowerCase();
-    return preparerMentionCandidates.filter((candidate) => candidate.name.toLowerCase().includes(q));
-  }, [mentionQuery, preparerMentionCandidates]);
-  const { onlineOthers, typingHint, clientCurrentTab, clientOnline, notifyTyping } = useTicketPresenceTyping(
-    ticket.id,
-    viewerUserId,
-    viewerName,
-    viewerRole,
-    currentPageLabel,
-    ticket.clientId,
+  const { onlineOthers, typingHint, clientCurrentTab, clientOnline, notifyTyping } =
+    useTicketPresenceTyping(
+      ticket.id,
+      viewerUserId,
+      viewerName,
+      viewerRole,
+      currentPageLabel,
+      ticket.clientId,
+    );
+  const unreadClientMessageCount = useMemo(
+    () =>
+      clientMessages.filter(
+        (m) => m.senderId === ticket.clientId && !hasReadMessage(m, reads[viewerUserId], messagesById),
+      ).length,
+    [clientMessages, messagesById, reads, ticket.clientId, viewerUserId],
   );
-  const seenLabel = readReceiptLabel(messages, viewerUserId, viewerIsStaff, reads);
   const primaryTrigger = cn(ticketCasePrimaryTabTriggerClassName(), 'whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:py-3 sm:text-sm');
   const openLinkOrNotify = (url: string | undefined, emptyMessage: string) => {
     if (!url) {
@@ -209,11 +208,6 @@ export function StaffTicketCaseTabs({
     }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
-  const nextStage = useMemo(() => {
-    const idx = STAGE_NAVIGATION.findIndex((s) => s.id === ticket.stage);
-    if (idx < 0 || idx >= STAGE_NAVIGATION.length - 1) return null;
-    return STAGE_NAVIGATION[idx + 1];
-  }, [ticket.stage]);
   useEffect(() => {
     if (draftUploading) setDraftUploading(false);
   }, [ticket.drafts?.length, draftUploading]);
@@ -275,27 +269,6 @@ export function StaffTicketCaseTabs({
     }
   };
 
-  const handleInternalBodyChange = (value: string) => {
-    setInternalBody(value);
-    const mentionMatch = value.match(/@([a-zA-Z\s]*)$/);
-    if (!mentionMatch) {
-      setMentionOpen(false);
-      setMentionQuery('');
-      setMentionIndex(0);
-      return;
-    }
-    setMentionOpen(true);
-    setMentionQuery(mentionMatch[1] ?? '');
-    setMentionIndex(0);
-  };
-
-  const applyMention = (name: string) => {
-    const next = internalBody.replace(/@([a-zA-Z\s]*)$/, `@${name} `);
-    setInternalBody(next);
-    setMentionOpen(false);
-    setMentionQuery('');
-  };
-
   const clientResumeTab =
     clientCaseTabIdFromPresenceLabel(clientCurrentTab) ?? suggestedClientCaseTabForStage(ticket.stage);
 
@@ -311,27 +284,59 @@ export function StaffTicketCaseTabs({
     }
   }, [clientCurrentTab, ticket.id, ticket.stage]);
 
+  const openClientMessagesDialog = useCallback(() => {
+    setMessagesTab('client');
+    setClientMessagesDialogOpen(true);
+  }, []);
+
+  const openInternalNotesDialog = useCallback(() => {
+    setMessagesTab('internal');
+    setClientMessagesDialogOpen(true);
+  }, []);
+
   const handleStaffTabChange = useCallback(
     (value: string) => {
-      const v = parseClientCaseTabId(value);
+      if (isMessagesTabDeepLink(value)) {
+        openClientMessagesDialog();
+        return;
+      }
+      const v = parseVisibleClientCaseTabId(value);
       if (!v) return;
       setActiveTab(v);
       const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
       qs.set('tab', v);
       router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
     },
-    [pathname, router],
+    [openClientMessagesDialog, pathname, router],
   );
 
   useEffect(() => {
-    const from = parseClientCaseTabId(initialTabFromUrl);
+    if (isMessagesTabDeepLink(initialTabFromUrl)) {
+      setClientMessagesDialogOpen(true);
+      const fallback = parseVisibleClientCaseTabId(initialTabFromUrl) ?? 'organizer';
+      setActiveTab(fallback);
+      const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      qs.delete('tab');
+      const next = qs.toString();
+      router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+      return;
+    }
+    const from = parseVisibleClientCaseTabId(initialTabFromUrl);
     if (from) setActiveTab(from);
-  }, [initialTabFromUrl]);
+  }, [initialTabFromUrl, pathname, router]);
 
   useEffect(() => {
     const onPop = () => {
-      const t = parseClientCaseTabId(new URL(window.location.href).searchParams.get('tab'));
-      if (t) setActiveTab(t);
+      const raw = new URL(window.location.href).searchParams.get('tab');
+      if (isMessagesTabDeepLink(raw)) {
+        setClientMessagesDialogOpen(true);
+        return;
+      }
+      const t = parseVisibleClientCaseTabId(raw);
+      if (t) {
+        setActiveTab(t);
+        setClientMessagesDialogOpen(false);
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -398,99 +403,48 @@ export function StaffTicketCaseTabs({
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleStaffTabChange} className="gap-0">
-        <div className="overflow-x-auto border-b border-border">
-        <TabsList className={cn(ticketCasePrimaryTabsListClassName, 'min-w-max flex-nowrap border-b-0')}>
-          {caseTabs.map(([id, label]) => (
-            <TabsTrigger key={id} value={id} className={primaryTrigger}>
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <StaffTicketMessaging
+        ticket={ticket}
+        viewerUserId={viewerUserId}
+        viewerName={viewerName}
+        viewerRole={viewerRole === 'admin' ? 'admin' : 'employee'}
+        messagesOpen={clientMessagesDialogOpen}
+        onMessagesOpenChange={setClientMessagesDialogOpen}
+        messagesTab={messagesTab}
+        onMessagesTabChange={setMessagesTab}
+        allMessages={messages}
+        historyActivities={historyActivities}
+        reads={reads}
+        onlineOthers={onlineOthers}
+        typingHint={typingHint}
+        notifyTyping={notifyTyping}
+      />
+
+      <Tabs value={activeTab} onValueChange={handleStaffTabChange} className="w-full gap-0">
+        <div className="flex items-stretch overflow-x-auto border-b border-border">
+          <div className="flex shrink-0 items-center gap-1.5 border-r border-border bg-muted/25 px-2 sm:px-3">
+            <MessagesLauncherButton
+              unreadCount={unreadClientMessageCount}
+              onClick={openClientMessagesDialog}
+              title="Open client messages"
+            />
+            <InternalNotesLauncherButton
+              count={internalMessages.length}
+              onClick={openInternalNotesDialog}
+            />
+          </div>
+          <TabsList className={cn(ticketCasePrimaryTabsListClassName, 'min-w-0 flex-1 flex-nowrap border-b-0')}>
+            {caseTabs.map(([id, label]) => (
+              <TabsTrigger key={id} value={id} className={primaryTrigger}>
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
 
-        <TabsContent value="messages" className="mt-0 border-0 p-0">
-          <TicketConversationPanel
-            status={
-              <>
-                {onlineOthers.length > 0 ? (
-                  <span>
-                    <span className="font-medium text-foreground/85">Online</span> ·{' '}
-                    {onlineOthers.map((o) => o.name).join(', ')}
-                  </span>
-                ) : null}
-                {typingHint ? <span className="text-foreground">{typingHint}</span> : null}
-                {seenLabel ? <span>{seenLabel}</span> : null}
-              </>
-            }
-            composer={
-              <StaffMessageComposer
-                ticketId={ticket.id}
-                internalMode={internalMode}
-                onInternalModeChange={setInternalMode}
-                internalBody={internalBody}
-                onInternalBodyChange={handleInternalBodyChange}
-                mentionOpen={mentionOpen}
-                mentionIndex={mentionIndex}
-                filteredMentionCandidates={filteredMentionCandidates}
-                onMentionSelect={applyMention}
-                onMentionIndexChange={setMentionIndex}
-                onMentionClose={() => setMentionOpen(false)}
-                onTyping={notifyTyping}
-                onSent={() => {
-                  setInternalBody('');
-                  setMentionOpen(false);
-                  setMentionQuery('');
-                }}
-              />
-            }
-          >
-            {messages.length === 0 ? (
-              <p className="py-10 text-center text-[13px] text-muted-foreground">
-                No messages yet. Client and team communication will appear here.
-              </p>
-            ) : (
-              messages.map((msg) => {
-                const latestSeen = latestSeenByUser[msg.senderId];
-                const isUnreadFromClient =
-                  msg.senderId === ticket.clientId && !hasReadMessage(msg, reads[viewerUserId], messagesById);
-                const isOutbound = msg.senderId === viewerUserId;
-                const seenByOther =
-                  isOutbound &&
-                  Object.keys(reads)
-                    .filter((uid) => uid !== viewerUserId)
-                    .some((uid) => hasReadMessage(msg, reads[uid], messagesById));
-                const isResolved =
-                  msg.isInternal &&
-                  historyActivities.some(
-                    (activity) =>
-                      activity.actionDetails?.resolved === true &&
-                      `${activity.actionDetails?.resolved_message_id ?? ''}` === msg.id,
-                  );
-                return (
-                  <StaffChatBubble
-                    key={msg.id}
-                    msg={msg}
-                    ticketId={ticket.id}
-                    clientId={ticket.clientId}
-                    viewerUserId={viewerUserId}
-                    isOutbound={isOutbound}
-                    isUnreadFromClient={isUnreadFromClient}
-                    seenByOther={seenByOther}
-                    latestSeen={latestSeen}
-                    isResolved={isResolved}
-                    isInternal={msg.isInternal}
-                    nextStage={nextStage}
-                    pendingNoteAction={pendingNoteAction}
-                    startPendingNoteAction={startPendingNoteAction}
-                  />
-                );
-              })
-            )}
-          </TicketConversationPanel>
-        </TabsContent>
-
-        <TabsContent value="organizer" className="mt-0 border-0 p-0">
+        <TabsContent value="organizer" className="mt-0 flex-none border-0 p-0">
+          {activeTab === 'organizer' ? (
+          <>
           {viewerIsStaff && (
             <div className="border-b border-border bg-muted/30 px-6 py-3">
               <div className="flex items-center justify-between">
@@ -512,9 +466,12 @@ export function StaffTicketCaseTabs({
             initialAnswers={organizerAnswers}
             onNavigatePastLastSection={() => setActiveTab('documents')}
           />
+          </>
+          ) : null}
         </TabsContent>
 
-        <TabsContent value="documents" className="mt-0 p-3 sm:p-6">
+        <TabsContent value="documents" className="mt-0 flex-none p-3 sm:p-6">
+          {activeTab === 'documents' ? (
           <div className="space-y-4">
             {viewerIsStaff && (
               <div className="rounded-md border border-border p-4">
@@ -608,9 +565,11 @@ export function StaffTicketCaseTabs({
               Same document list as the client portal; uploads are managed from the client account.
             </p>
           </div>
+          ) : null}
         </TabsContent>
 
-        <TabsContent value="drafts" className="mt-0 p-3 sm:p-6">
+        <TabsContent value="drafts" className="mt-0 flex-none p-3 sm:p-6">
+          {activeTab === 'drafts' ? (
           <div className="space-y-4">
             <div className="rounded-md border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Tax Return Drafts</div>
@@ -761,6 +720,7 @@ export function StaffTicketCaseTabs({
               </Button>
             </form>
           </div>
+          ) : null}
         </TabsContent>
 
         <TabsContent value="invoices" className="mt-0 p-3 sm:p-6">
@@ -1016,7 +976,11 @@ export function StaffTicketCaseTabs({
         </TabsContent>
 
         <TabsContent value="history" className="mt-0 p-3 sm:p-6">
-          <TicketHistory activities={historyActivities} isStaff={true} />
+          <TicketHistory
+            activities={historyActivities}
+            isStaff={true}
+            onTabSwitch={(tab) => handleStaffTabChange(tab)}
+          />
         </TabsContent>
       </Tabs>
       <Dialog open={rejectReasonOpen} onOpenChange={setRejectReasonOpen}>

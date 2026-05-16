@@ -1,0 +1,45 @@
+'use client';
+
+import { Send } from 'lucide-react';
+
+import { sendStaffMessageFormAction } from '@/app/actions/forms';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { cn } from '@/lib/utils';
+
+export function StaffClientMessageComposer({
+  ticketId,
+  onTyping,
+}: {
+  ticketId: string;
+  onTyping?: () => void;
+}) {
+  return (
+    <form
+      action={async (formData: FormData) => {
+        await sendStaffMessageFormAction(formData);
+      }}
+      className="flex items-end gap-2"
+    >
+      <input type="hidden" name="ticketId" value={ticketId} />
+      <Textarea
+        name="body"
+        placeholder="Message the client…"
+        className="min-h-[44px] max-h-28 flex-1 resize-none bg-background py-2 text-[13px] leading-snug"
+        rows={2}
+        required
+        onInput={onTyping}
+      />
+      <Button
+        type="submit"
+        size="sm"
+        variant="default"
+        className={cn('h-9 shrink-0 gap-1.5 px-3', ticketCaseBlackCtaButtonClassName)}
+      >
+        <Send className="size-3.5" />
+        Send
+      </Button>
+    </form>
+  );
+}

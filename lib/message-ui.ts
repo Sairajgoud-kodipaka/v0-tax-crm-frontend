@@ -1,10 +1,27 @@
-import { format, isToday, isYesterday } from 'date-fns';
+import { format, isSameWeek, isSameYear, isToday, isYesterday } from 'date-fns';
 
-/** Compact timestamp for chat bubbles. */
+/** Stable key for grouping messages by calendar day. */
+export function getChatDayKey(date: Date): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
+/** WhatsApp-style day pill between message groups. */
+export function formatChatDayLabel(date: Date): string {
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  if (isSameWeek(date, new Date(), { weekStartsOn: 0 })) return format(date, 'EEEE');
+  if (isSameYear(date, new Date())) return format(date, 'MMMM d');
+  return format(date, 'MMMM d, yyyy');
+}
+
+/** Time only on each bubble (WhatsApp-style). */
+export function formatBubbleTime(date: Date): string {
+  return format(date, 'h:mm a');
+}
+
+/** @deprecated Use formatBubbleTime for bubbles and formatChatDayLabel for day separators. */
 export function formatMessageTime(date: Date): string {
-  if (isToday(date)) return format(date, 'h:mm a');
-  if (isYesterday(date)) return `Yesterday ${format(date, 'h:mm a')}`;
-  return format(date, 'MMM d, h:mm a');
+  return formatBubbleTime(date);
 }
 
 export function relativeSeenLine(date: Date): string {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { removeSupabaseChannelByName } from '@/lib/supabase-realtime';
 import type { Message } from '@/lib/types';
 
 export type ThreadReadsMap = Record<string, string | null>;
@@ -45,8 +46,13 @@ export function useTicketReadReceipts(
   const [reads, setReads] = useState<ThreadReadsMap>({});
 
   useEffect(() => {
+    if (!ticketId) return;
+
     const supabase = createClient();
+    const channelName = `ticket-thread-reads:${ticketId}`;
     let cancelled = false;
+
+    removeSupabaseChannelByName(supabase, channelName);
 
     void supabase
       .from('ticket_thread_reads')
@@ -62,7 +68,7 @@ export function useTicketReadReceipts(
       });
 
     const channel = supabase
-      .channel(`ticket-thread-reads:${ticketId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

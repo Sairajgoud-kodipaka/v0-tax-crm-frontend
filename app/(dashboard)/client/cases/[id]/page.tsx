@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ClientCaseTabs } from '@/components/client/client-case-tabs';
 import { ChevronLeft } from 'lucide-react';
 import { getTaxOrganizerAnswersAction } from '@/app/actions/organizer';
-import { getSessionUser, getTicketForClientCase } from '@/lib/data/tickets-queries';
+import { getSessionUser, getTicketDetailBundle, getTicketForClientCase } from '@/lib/data/tickets-queries';
 
 export default async function ClientCaseDetailPage({
   params,
@@ -15,10 +15,13 @@ export default async function ClientCaseDetailPage({
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const session = await getSessionUser();
-  if (!session || session.role !== 'client') notFound();
+  if (!session) notFound();
+  if (session.role !== 'client' && session.role !== 'admin' && session.role !== 'employee') notFound();
 
   const [ticket, organizerAnswers] = await Promise.all([
-    getTicketForClientCase(id, session.id),
+    session.role === 'client'
+      ? getTicketForClientCase(id, session.id)
+      : getTicketDetailBundle(id, session.role, session.id),
     getTaxOrganizerAnswersAction(id),
   ]);
   if (!ticket) {

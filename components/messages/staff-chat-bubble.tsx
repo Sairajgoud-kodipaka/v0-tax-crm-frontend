@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatMessageTime, relativeSeenLine } from '@/lib/message-ui';
+import { formatBubbleTime, relativeSeenLine } from '@/lib/message-ui';
 import type { Message, TicketStage } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -141,7 +141,9 @@ export function StaffChatBubble({
           )}
         >
           {latestSeen && !isOutbound ? <span>{relativeSeenLine(latestSeen)}</span> : null}
-          <time dateTime={msg.createdAt.toISOString()}>{formatMessageTime(msg.createdAt)}</time>
+          <time dateTime={msg.createdAt.toISOString()} title={msg.createdAt.toLocaleString()}>
+            {formatBubbleTime(msg.createdAt)}
+          </time>
           {isOutbound && !isInternal ? <span>{seenByOther ? '· Read' : '· Sent'}</span> : null}
           {isUnreadFromClient ? (
             <span className="size-1.5 rounded-full bg-blue-500" aria-label="Unread message" />

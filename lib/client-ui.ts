@@ -14,6 +14,13 @@ export const CLIENT_CASE_TAB_IDS = [
 
 export type ClientCaseTabId = (typeof CLIENT_CASE_TAB_IDS)[number];
 
+/** Tabs shown in the case tab bar (messages open via icon + modal). */
+export type ClientVisibleCaseTabId = Exclude<ClientCaseTabId, 'messages'>;
+
+export const CLIENT_VISIBLE_CASE_TAB_IDS = CLIENT_CASE_TAB_IDS.filter(
+  (id): id is ClientVisibleCaseTabId => id !== 'messages',
+);
+
 export const CLIENT_CASE_TAB_LABELS: Record<ClientCaseTabId, string> = {
   messages: 'Messages',
   organizer: 'Tax Organizer',
@@ -29,13 +36,25 @@ export function parseClientCaseTabId(value: string | null | undefined): ClientCa
   return (CLIENT_CASE_TAB_IDS as readonly string[]).includes(value) ? (value as ClientCaseTabId) : null;
 }
 
+export function parseVisibleClientCaseTabId(
+  value: string | null | undefined,
+): ClientVisibleCaseTabId | null {
+  const tab = parseClientCaseTabId(value);
+  if (!tab || tab === 'messages') return null;
+  return tab;
+}
+
+export function isMessagesTabDeepLink(value: string | null | undefined): boolean {
+  return value === 'messages';
+}
+
 /** Map pipeline stage to the tab clients usually need next (deep links / staff “resume” copy). */
 export function suggestedClientCaseTabForStage(stage: TicketStage): ClientCaseTabId {
   switch (stage) {
     case 'pending-info':
       return 'organizer';
     case 'under-prep':
-      return 'messages';
+      return 'organizer';
     case 'draft-sent':
     case 'awaiting-approval':
       return 'drafts';
@@ -48,7 +67,7 @@ export function suggestedClientCaseTabForStage(stage: TicketStage): ClientCaseTa
     case 'closed':
       return 'final';
     default:
-      return 'messages';
+      return 'organizer';
   }
 }
 
