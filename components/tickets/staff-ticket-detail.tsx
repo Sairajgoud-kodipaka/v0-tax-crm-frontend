@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { TICKET_STAGES, STAGE_NAVIGATION } from '@/lib/constants';
 import type { Ticket, UserRole } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormSelect } from '@/components/ui/form-select';
+import { Input } from '@/components/ui/input';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { updateStageFormAction } from '@/app/actions/forms';
@@ -89,48 +90,38 @@ export function StaffTicketDetail({
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="pb-1">
-          <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Update Stage</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <form action={updateStageFormAction} className="flex flex-wrap items-end gap-1.5">
-            <input type="hidden" name="ticketId" value={ticket.id} />
-            <div className="space-y-1 min-w-[140px]">
-              <label htmlFor="toStage" className="text-[10px] text-muted-foreground">
-                Stage
-              </label>
-              <select
-                id="toStage"
-                name="toStage"
-                key={liveStage}
-                defaultValue={liveStage}
-                className="flex h-7 rounded-md border border-input bg-background px-2 py-0 text-xs"
-              >
-                {STAGE_NAVIGATION.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="min-w-[180px] flex-1 space-y-1">
-              <label htmlFor="note" className="text-[10px] text-muted-foreground">
-                Note
-              </label>
-              <input
-                id="note"
-                name="note"
-                className="flex h-7 w-full rounded-md border border-input bg-background px-2 py-0 text-xs"
-                placeholder="Reason for change"
-              />
-            </div>
-            <Button type="submit" size="sm" variant="default" className={cn('h-7 px-2.5 text-xs', ticketCaseBlackCtaButtonClassName)}>
-              Save stage
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="rounded-md border border-border bg-card px-3 py-2 shadow-sm">
+        <form action={updateStageFormAction} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="ticketId" value={ticket.id} />
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Update stage
+          </span>
+          <FormSelect
+            key={liveStage}
+            id="toStage"
+            name="toStage"
+            defaultValue={liveStage}
+            size="sm"
+            options={STAGE_NAVIGATION.map((s) => ({ value: s.id, label: s.label }))}
+            triggerClassName="h-8 w-[11rem] shrink-0 text-xs"
+          />
+          <Input
+            id="note"
+            name="note"
+            aria-label="Note"
+            className="h-8 min-w-[8rem] flex-1 text-xs"
+            placeholder="Note (optional)"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            variant="default"
+            className={cn('h-8 shrink-0 px-3 text-xs', ticketCaseBlackCtaButtonClassName)}
+          >
+            Save stage
+          </Button>
+        </form>
+      </div>
 
       <StaffTicketCaseTabs
         ticketRaw={ticketRaw}

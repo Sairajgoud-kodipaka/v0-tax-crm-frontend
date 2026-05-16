@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { formatDistanceToNowStrict } from 'date-fns';
 import { useTicketStageRealtime } from '@/hooks/use-ticket-stage-realtime';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
@@ -11,7 +10,6 @@ import { displayTicketRef, formatTicketLastUpdatedLine, parseClientCaseTabId, CL
 import { TICKET_STAGES } from '@/lib/constants';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
-  sendClientMessageFormAction,
   payInvoiceFormAction,
   clientUploadDocumentFormAction,
   clientDraftResponseFormAction,
@@ -20,7 +18,9 @@ import { ReplaceDocumentButton } from '@/components/documents/replace-document-b
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ClientChatBubble } from '@/components/messages/client-chat-bubble';
+import { ClientMessageComposer } from '@/components/messages/client-message-composer';
+import { TicketConversationPanel } from '@/components/messages/ticket-conversation-panel';
 import {
   Table,
   TableBody,
@@ -57,17 +57,6 @@ function ticketTitleLine(ticket: ReturnType<typeof hydrateTicket>): string {
 
 function ticketHeaderTitle(ref: string, ticket: ReturnType<typeof hydrateTicket>): string {
   return `Ticket #${ref} - ${ticketTitleLine(ticket)}`;
-}
-
-function relativeSeenLine(date: Date): string {
-  const diffMs = Date.now() - date.getTime();
-  const min = 60_000;
-  const hr = 60 * min;
-  if (diffMs < min) return 'Seen just now';
-  if (diffMs < hr) return `Seen ${Math.max(1, Math.round(diffMs / min))} min ago`;
-  if (diffMs < 24 * hr) return `Seen ${Math.max(1, Math.round(diffMs / hr))} hours ago`;
-  if (diffMs < 48 * hr) return 'Seen yesterday';
-  return `Seen ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
 }
 
 function clientStageStatusBannerText(stage: TicketStage): string {
@@ -157,13 +146,6 @@ export function ClientCaseTabs({
   const viewerIsStaff = viewerRole === 'admin' || viewerRole === 'employee';
   const reads = useTicketReadReceipts(ticket.id, messages, viewerUserId);
   const messagesById = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
-  const latestSeenByUser = useMemo(() => {
-    const map: Record<string, Date> = {};
-    for (const m of messages) {
-      map[m.senderId] = m.createdAt;
-    }
-    return map;
-  }, [messages]);
   const { onlineOthers, typingHint, notifyTyping } = useTicketPresenceTyping(
     ticket.id,
     viewerUserId,
@@ -260,7 +242,7 @@ export function ClientCaseTabs({
   }, [tabStorageKey]);
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
       <TicketDetailDataRefresh ticketId={ticket.id} />
       <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <h1 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
@@ -314,78 +296,47 @@ export function ClientCaseTabs({
         </TabsList>
 
         <TabsContent value="messages" className="mt-0 border-0 p-0">
-          <div className="flex min-h-[360px] flex-col border-t border-border bg-background">
-            <ScrollArea className="flex-1 p-4">
-              <div className="mb-2 space-y-1 rounded-lg border border-border/60 bg-muted/15 px-3 py-2 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+          <TicketConversationPanel
+            status={
+              <>
                 {onlineOthers.length > 0 ? (
-                  <p>
-                    <span className="font-medium text-foreground/80">Online</span> ·{' '}
+                  <span>
+                    <span className="font-medium text-foreground/85">Online</span> ·{' '}
                     {onlineOthers.map((o) => o.name).join(', ')}
-                  </p>
+                  </span>
                 ) : null}
-                {typingHint ? <p className="text-foreground">{typingHint}</p> : null}
-                {seenLabel ? <p>{seenLabel}</p> : null}
-              </div>
-              <div className="min-h-[240px] space-y-3 pr-2 text-foreground">
-                {messages.length === 0 ? (
-                  <p className="py-16 text-center text-sm text-muted-foreground">
-                    No messages yet. Your conversation with the team will appear here.
-                  </p>
-                ) : (
-                  messages.map((msg) => {
-                    const latestSeen = latestSeenByUser[msg.senderId];
-                    const isUnreadInbound = msg.senderId !== viewerUserId && !hasReadMessage(msg, reads[viewerUserId], messagesById);
-                    const isOutbound = msg.senderId === viewerUserId;
-                    const seenByOther =
-                      isOutbound &&
-                      Object.keys(reads)
-                        .filter((uid) => uid !== viewerUserId)
-                        .some((uid) => hasReadMessage(msg, reads[uid], messagesById));
-                    return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          'rounded-lg border px-4 py-3 text-sm',
-                          msg.senderId === ticket.clientId
-                            ? 'ml-8 border-primary/30 bg-primary/5'
-                            : 'mr-8 border-border bg-muted/40',
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <span className="font-medium text-foreground">{msg.senderName}</span>
-                            {latestSeen ? <p className="text-[11px] text-muted-foreground">{relativeSeenLine(latestSeen)}</p> : null}
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {msg.createdAt.toLocaleDateString()} {isOutbound ? (seenByOther ? '✓✓' : '✓') : ''}
-                            {isUnreadInbound ? <span className="ml-1 inline-block size-2 rounded-full bg-blue-500" /> : null}
-                          </span>
-                        </div>
-                        <p className="mt-2 whitespace-pre-wrap text-foreground">{msg.content}</p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-            <div className="border-t border-border p-4">
-              <form action={sendClientMessageFormAction} className="space-y-3">
-                <input type="hidden" name="ticketId" value={ticket.id} />
-                <Textarea
-                  name="body"
-                  placeholder="Type your message…"
-                  className="min-h-[88px] resize-none bg-background"
-                  required
-                  onInput={() => notifyTyping()}
-                />
-                <div className="flex justify-end">
-                  <Button type="submit" variant="default" className={ticketCaseBlackCtaButtonClassName}>
-                    Send
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
+                {typingHint ? <span className="text-foreground">{typingHint}</span> : null}
+                {seenLabel ? <span>{seenLabel}</span> : null}
+              </>
+            }
+            composer={<ClientMessageComposer ticketId={ticket.id} onTyping={notifyTyping} />}
+          >
+            {messages.length === 0 ? (
+              <p className="py-10 text-center text-[13px] text-muted-foreground">
+                No messages yet. Say hello to your tax team.
+              </p>
+            ) : (
+              messages.map((msg) => {
+                const isUnreadInbound =
+                  msg.senderId !== viewerUserId && !hasReadMessage(msg, reads[viewerUserId], messagesById);
+                const isOutbound = msg.senderId === viewerUserId;
+                const seenByOther =
+                  isOutbound &&
+                  Object.keys(reads)
+                    .filter((uid) => uid !== viewerUserId)
+                    .some((uid) => hasReadMessage(msg, reads[uid], messagesById));
+                return (
+                  <ClientChatBubble
+                    key={msg.id}
+                    msg={msg}
+                    isOutbound={isOutbound}
+                    isUnread={isUnreadInbound}
+                    seenByOther={seenByOther}
+                  />
+                );
+              })
+            )}
+          </TicketConversationPanel>
         </TabsContent>
 
         <TabsContent value="organizer" className="mt-0 border-0 p-0">

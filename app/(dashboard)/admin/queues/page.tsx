@@ -13,7 +13,7 @@ function QueueSkeleton() {
         <div className="h-4 w-72 rounded bg-muted" />
         <div className="h-4 w-40 rounded bg-muted mt-2" />
       </div>
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-md border border-border bg-card p-4">
         <div className="space-y-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-14 rounded-lg bg-muted" />

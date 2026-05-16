@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { STAGE_NAVIGATION } from '@/lib/constants';
 import type { EmployeeClientTicketRow } from '@/lib/data/clients-queries';
+import { FormSelect } from '@/components/ui/form-select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -51,24 +52,24 @@ export function EmployeeClientsView(props: {
         <Button asChild variant="outline">
           <Link href={backHref}>{'<'}- Back to All Clients</Link>
         </Button>
-        <form method="get">
+        <form id="employee-clients-switch" method="get">
           <input type="hidden" name="stageFilter" value={stageFilter} />
           <label className="sr-only" htmlFor="employee-switch">
             Switch Employee
           </label>
-          <select
+          <FormSelect
             id="employee-switch"
             name="employeeView"
             defaultValue={employeeId}
-            className="h-10 min-w-[250px] rounded-md border border-input bg-background px-3 text-sm"
-            onChange={(e) => e.currentTarget.form?.requestSubmit()}
-          >
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {(e.full_name?.trim() || e.id.slice(0, 8)) + ' (Tax Preparer)'}
-              </option>
-            ))}
-          </select>
+            options={employees.map((e) => ({
+              value: e.id,
+              label: `${e.full_name?.trim() || e.id.slice(0, 8)} (Tax Preparer)`,
+            }))}
+            triggerClassName="h-10 min-w-[250px]"
+            onValueChange={() => {
+              (document.getElementById('employee-clients-switch') as HTMLFormElement | null)?.requestSubmit();
+            }}
+          />
         </form>
       </div>
 
@@ -97,7 +98,7 @@ export function EmployeeClientsView(props: {
         })}
       </div>
 
-      <div className="rounded-xl border">
+      <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -82,8 +82,13 @@ function SignupInner() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted p-4">
+    <div className="min-h-screen flex items-center justify-center bg-brand-gradient-hero p-4">
       <div className="w-full max-w-md space-y-6">
+        <div className="text-center space-y-2">
+          <img src="/TF.svg" alt="TaxFiley" className="mx-auto h-14 w-14 object-contain" />
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary">TaxFiley</h1>
+          <p className="text-muted-foreground">Smart Tax Filing &amp; Client Portal</p>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Create client account</CardTitle>

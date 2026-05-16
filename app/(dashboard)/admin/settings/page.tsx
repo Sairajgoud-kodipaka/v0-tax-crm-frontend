@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Save } from 'lucide-react';
 import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
+import { FormSelect } from '@/components/ui/form-select';
 import { cn } from '@/lib/utils';
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: new Date(2024, i).toLocaleString('default', { month: 'long' }),
+}));
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
@@ -105,31 +111,21 @@ export default function SettingsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-foreground">Season Start (Month)</label>
-              <select
-                value={settings.taxSeasonStart}
-                onChange={(e) => handleChange('taxSeasonStart', parseInt(e.target.value))}
-                className="w-full mt-1 px-3 py-2 border border-border rounded-lg"
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => (
-                  <option key={month} value={month}>
-                    {new Date(2024, month - 1).toLocaleString('default', { month: 'long' })}
-                  </option>
-                ))}
-              </select>
+              <FormSelect
+                className="mt-1"
+                value={String(settings.taxSeasonStart)}
+                onValueChange={(v) => handleChange('taxSeasonStart', parseInt(v, 10))}
+                options={MONTH_OPTIONS}
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Season End (Month)</label>
-              <select
-                value={settings.taxSeasonEnd}
-                onChange={(e) => handleChange('taxSeasonEnd', parseInt(e.target.value))}
-                className="w-full mt-1 px-3 py-2 border border-border rounded-lg"
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((month) => (
-                  <option key={month} value={month}>
-                    {new Date(2024, month - 1).toLocaleString('default', { month: 'long' })}
-                  </option>
-                ))}
-              </select>
+              <FormSelect
+                className="mt-1"
+                value={String(settings.taxSeasonEnd)}
+                onValueChange={(v) => handleChange('taxSeasonEnd', parseInt(v, 10))}
+                options={MONTH_OPTIONS}
+              />
             </div>
           </div>
 

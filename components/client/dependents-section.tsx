@@ -21,12 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { YesNoFormSelect } from '@/components/client/yes-no-form-select';
 import { VisaTypeSelect } from '@/components/client/visa-type-select';
 import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
 
-const selectClassName =
-  'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const selectClassName = 'w-full';
 
 function Req({ children }: { children: React.ReactNode }) {
   return (
@@ -281,10 +281,7 @@ export function DependentsSection({ initialRows = [] }: { initialRows?: unknown[
                   <Label htmlFor="dep-apply-itin">
                     <Req>Apply ITIN for Dependent</Req>
                   </Label>
-                  <select id="dep-apply-itin" name="dep-apply-itin" defaultValue={editingRow?.applyItin || 'no'} className={selectClassName}>
-                    <option value="no">No</option>
-                    <option value="yes">Yes</option>
-                  </select>
+                  <YesNoFormSelect id="dep-apply-itin" name="dep-apply-itin" defaultValue={editingRow?.applyItin || 'no'} className={selectClassName} />
                 </div>
               </div>
 
@@ -314,10 +311,7 @@ export function DependentsSection({ initialRows = [] }: { initialRows?: unknown[
                 <Label htmlFor="dep-trump">
                   <Req>Do you want to open a Trump Account/MAGA Account?</Req>
                 </Label>
-                <select id="dep-trump" name="dep-trump" defaultValue={editingRow?.trumpAccount || 'no'} className={cn(selectClassName, 'max-w-xs')}>
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
+                <YesNoFormSelect id="dep-trump" name="dep-trump" defaultValue={editingRow?.trumpAccount || 'no'} className={cn(selectClassName, 'max-w-xs')} />
                 <p className="text-xs text-muted-foreground">Applicable only for kids under 18 years.</p>
               </div>
 
@@ -334,10 +328,7 @@ export function DependentsSection({ initialRows = [] }: { initialRows?: unknown[
 
               <div className="space-y-2 sm:max-w-xs">
                 <Label htmlFor="dep-visa-change">Was there a change in Visa during 2024?</Label>
-                <select id="dep-visa-change" name="dep-visa-change" defaultValue={editingRow?.visaChange || 'no'} className={selectClassName}>
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
+                <YesNoFormSelect id="dep-visa-change" name="dep-visa-change" defaultValue={editingRow?.visaChange || 'no'} className={selectClassName} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -345,19 +336,13 @@ export function DependentsSection({ initialRows = [] }: { initialRows?: unknown[
                   <Label htmlFor="dep-reside-2024">
                     <Req>Did your Dependent reside at least 6 months in US with you during 2024?</Req>
                   </Label>
-                  <select id="dep-reside-2024" name="dep-reside-2024" defaultValue={editingRow?.reside2024 || 'no'} className={selectClassName}>
-                    <option value="no">No</option>
-                    <option value="yes">Yes</option>
-                  </select>
+                  <YesNoFormSelect id="dep-reside-2024" name="dep-reside-2024" defaultValue={editingRow?.reside2024 || 'no'} className={selectClassName} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dep-reside-2025">
                     <Req>Will your Dependent reside at least 6 months in US during 2025?</Req>
                   </Label>
-                  <select id="dep-reside-2025" name="dep-reside-2025" defaultValue={editingRow?.reside2025 || 'no'} className={selectClassName}>
-                    <option value="no">No</option>
-                    <option value="yes">Yes</option>
-                  </select>
+                  <YesNoFormSelect id="dep-reside-2025" name="dep-reside-2025" defaultValue={editingRow?.reside2025 || 'no'} className={selectClassName} />
                 </div>
               </div>
 

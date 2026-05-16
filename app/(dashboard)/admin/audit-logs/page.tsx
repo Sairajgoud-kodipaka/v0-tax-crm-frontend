@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import { AuditLogsFilter } from '@/components/admin/audit-logs-filter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 import { getServerSupabase } from '@/lib/data/tickets-queries';
@@ -108,14 +110,9 @@ export default async function AuditLogsPage({
                 />
               </div>
             </div>
-            <select
-              name="type"
-              defaultValue={filterType}
-              className="px-4 py-2 border border-border rounded-lg bg-background"
-            >
-              <option value="all">All Resources</option>
-              <option value="Ticket">Tickets</option>
-            </select>
+            <Suspense fallback={<div className="h-9 w-40 animate-pulse rounded-sm bg-muted" />}>
+              <AuditLogsFilter defaultType={filterType} />
+            </Suspense>
             <button type="submit" className="px-4 py-2 border border-border rounded-lg bg-background text-sm">
               Apply
             </button>
@@ -133,7 +130,7 @@ export default async function AuditLogsPage({
                 <div key={log.id} className="flex items-start justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
+                      <span className={`px-3 py-1 rounded-sm text-xs font-medium ${getActionColor(log.action)}`}>
                         {log.action}
                       </span>
                       <span className="text-sm font-medium text-foreground">{log.resourceType}</span>

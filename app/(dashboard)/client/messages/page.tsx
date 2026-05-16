@@ -1,12 +1,9 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Search, Send } from 'lucide-react';
+import { ClientTicketThread } from '@/components/messages/client-ticket-thread';
+import { Search } from 'lucide-react';
 import { getSessionUser, getServerSupabase } from '@/lib/data/tickets-queries';
-import { sendClientMessageFormAction } from '@/app/actions/forms';
-import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
-import { cn } from '@/lib/utils';
+import type { UserRole } from '@/lib/types';
 
 type MessageRow = {
   id: string;
@@ -78,6 +75,18 @@ export default async function ClientMessagesPage({
     return acc;
   }, {});
   const selectedTicketMessages = selectedTicketId ? messagesByTicket[selectedTicketId] ?? [] : [];
+  const selectedTicket = selectedTicketId ? filteredTickets.find((t) => t.id === selectedTicketId) : null;
+  const preparerName =
+    employeeNames[selectedTicket?.assigned_employee_id ?? ''] ?? 'your tax preparer';
+
+  const threadMessages = selectedTicketMessages.map((msg) => ({
+    id: msg.id,
+    senderId: msg.sender_id,
+    senderName: msg.sender_id === session.id ? 'You' : preparerName,
+    senderRole: (msg.sender_id === session.id ? 'client' : 'employee') as UserRole,
+    body: msg.body,
+    createdAt: msg.created_at,
+  }));
 
   return (
     <div className="space-y-6">
@@ -130,60 +139,24 @@ export default async function ClientMessagesPage({
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>{selectedTicketId ? filteredTickets.find((t) => t.id === selectedTicketId)?.subject : 'Select a case'}</CardTitle>
+        <Card className="flex flex-col overflow-hidden lg:col-span-2">
+          <CardHeader className="border-b border-border/80 pb-3">
+            <CardTitle className="text-base">{selectedTicket?.subject ?? 'Select a case'}</CardTitle>
             <CardDescription>
-              {selectedTicketId
-                ? `Conversation with ${
-                    employeeNames[
-                      filteredTickets.find((t) => t.id === selectedTicketId)?.assigned_employee_id ?? ''
-                    ] ?? 'your tax preparer'
-                  }`
-                : 'Select a case to view messages'}
+              {selectedTicketId ? `Conversation with ${preparerName}` : 'Select a case to view messages'}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-0">
             {selectedTicketId ? (
-              <>
-                <div className="max-h-96 space-y-3 overflow-y-auto rounded-lg bg-muted/30 p-4">
-                  {selectedTicketMessages.length === 0 ? (
-                    <div className="py-8 text-center">
-                      <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
-                    </div>
-                  ) : (
-                    selectedTicketMessages.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender_id === session.id ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-xs rounded-lg px-4 py-2 ${
-                            msg.sender_id === session.id
-                              ? 'bg-black text-white'
-                              : 'border border-border bg-card text-foreground'
-                          }`}
-                        >
-                          <p className="text-sm">{msg.body}</p>
-                          <p className={`mt-1 text-xs ${msg.sender_id === session.id ? 'opacity-80' : 'text-muted-foreground'}`}>
-                            {new Date(msg.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <form action={sendClientMessageFormAction} className="space-y-2 border-t border-border pt-4">
-                  <input type="hidden" name="ticketId" value={selectedTicketId} />
-                  <Textarea name="body" placeholder="Type your message..." className="min-h-20 resize-none" required />
-                  <Button type="submit" variant="default" className={cn('w-full gap-2', ticketCaseBlackCtaButtonClassName)}>
-                    <Send className="h-4 w-4" />
-                    Send Message
-                  </Button>
-                </form>
-              </>
+              <ClientTicketThread
+                ticketId={selectedTicketId}
+                viewerUserId={session.id}
+                messages={threadMessages}
+              />
             ) : (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground">Select a case from the list to view or send messages</p>
-              </div>
+              <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                Select a case from the list to view or send messages
+              </p>
             )}
           </CardContent>
         </Card>

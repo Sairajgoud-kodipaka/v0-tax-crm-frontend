@@ -85,7 +85,7 @@ export default async function AdminDashboard() {
                     </p>
                     <div className="mt-2 flex items-center gap-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${stageInfo?.color || 'bg-gray-100 text-gray-800'}`}
+                        className={`px-3 py-1 rounded-sm text-xs font-medium ${stageInfo?.color || 'bg-gray-100 text-gray-800'}`}
                       >
                         {stageInfo?.label || ticket.stage}
                       </span>

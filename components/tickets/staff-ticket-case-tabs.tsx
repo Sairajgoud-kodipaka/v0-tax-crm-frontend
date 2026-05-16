@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { formatDistanceToNowStrict } from 'date-fns';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTicketMessagesRealtime } from '@/hooks/use-ticket-messages-realtime';
 import { TicketDetailDataRefresh } from '@/components/realtime/ticket-detail-data-refresh';
 import { clientStatusPresentation, displayTicketRef, formatTicketLastUpdatedLine, clientCaseTabIdFromPresenceLabel, CLIENT_CASE_TAB_LABELS, parseClientCaseTabId, suggestedClientCaseTabForStage, type ClientCaseTabId } from '@/lib/client-ui';
 import { hydrateTicket } from '@/lib/data/hydrate-ticket';
 import {
-  sendStaffMessageFormAction,
   staffUploadDraftFormAction,
   staffUploadInvoiceFileFormAction,
   staffUploadFinalPackageFormAction,
@@ -23,7 +21,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { StaffChatBubble } from '@/components/messages/staff-chat-bubble';
+import { StaffMessageComposer } from '@/components/messages/staff-message-composer';
+import { TicketConversationPanel } from '@/components/messages/ticket-conversation-panel';
 import {
   Table,
   TableBody,
@@ -44,12 +44,10 @@ import { hasReadMessage, useTicketReadReceipts, readReceiptLabel } from '@/hooks
 import { useTicketPresenceTyping } from '@/hooks/use-ticket-presence-typing';
 import type { UserRole, TicketActivity } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
-import { MoreHorizontal, Trash2, Upload, Eye, Download } from 'lucide-react';
+import { Trash2, Upload, Eye, Download } from 'lucide-react';
 import { useTicketHistoryRealtime } from '@/hooks/use-ticket-history-realtime';
 import { TicketHistory } from '@/components/tickets/ticket-history';
 import { staffReviewDraftAction } from '@/app/actions/tickets';
-import { escalateInternalThreadAction, markInternalThreadResolvedAction } from '@/app/actions/messages';
-import { updateTicketStageAction } from '@/app/actions/tickets';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,7 +60,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { STAGE_NAVIGATION, TICKET_STAGES } from '@/lib/constants';
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -77,17 +74,6 @@ function ticketTitleLine(ticket: ReturnType<typeof hydrateTicket>): string {
 
 function ticketHeaderTitle(ref: string, ticket: ReturnType<typeof hydrateTicket>): string {
   return `Ticket #${ref} - ${ticketTitleLine(ticket)}`;
-}
-
-function relativeSeenLine(date: Date): string {
-  const diffMs = Date.now() - date.getTime();
-  const min = 60_000;
-  const hr = 60 * min;
-  if (diffMs < min) return 'Seen just now';
-  if (diffMs < hr) return `Seen ${Math.max(1, Math.round(diffMs / min))} min ago`;
-  if (diffMs < 24 * hr) return `Seen ${Math.max(1, Math.round(diffMs / hr))} hours ago`;
-  if (diffMs < 48 * hr) return 'Seen yesterday';
-  return `Seen ${formatDistanceToNowStrict(date, { addSuffix: true })}`;
 }
 
 function draftBadgePresentation(status: 'approved' | 'rejected' | null): { label: string; className: string } | null {
@@ -352,7 +338,7 @@ export function StaffTicketCaseTabs({
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm">
+    <div className="overflow-hidden rounded-md border border-border/80 bg-card shadow-sm">
       <TicketDetailDataRefresh ticketId={ticket.id} />
       <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -372,7 +358,7 @@ export function StaffTicketCaseTabs({
           <div>
             <span
               className={cn(
-                'inline-flex w-fit items-center rounded-full px-3 py-1.5 text-xs font-semibold',
+                'inline-flex w-fit items-center rounded-sm px-3 py-1.5 text-xs font-semibold',
                 status.className,
               )}
             >
@@ -413,7 +399,7 @@ export function StaffTicketCaseTabs({
       </div>
 
       <Tabs value={activeTab} onValueChange={handleStaffTabChange} className="gap-0">
-        <div className="overflow-x-auto border-b border-border bg-black">
+        <div className="overflow-x-auto border-b border-border">
         <TabsList className={cn(ticketCasePrimaryTabsListClassName, 'min-w-max flex-nowrap border-b-0')}>
           {caseTabs.map(([id, label]) => (
             <TabsTrigger key={id} value={id} className={primaryTrigger}>
@@ -424,276 +410,85 @@ export function StaffTicketCaseTabs({
         </div>
 
         <TabsContent value="messages" className="mt-0 border-0 p-0">
-          <div className="flex min-h-[360px] flex-col bg-background">
-            <ScrollArea className="flex-1 p-3 sm:p-4">
-              <div className="mb-2 space-y-1 rounded-lg border border-border/60 bg-muted/15 px-3 py-2 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+          <TicketConversationPanel
+            status={
+              <>
                 {onlineOthers.length > 0 ? (
-                  <p>
-                    <span className="font-medium text-foreground/80">Online</span> ·{' '}
+                  <span>
+                    <span className="font-medium text-foreground/85">Online</span> ·{' '}
                     {onlineOthers.map((o) => o.name).join(', ')}
-                  </p>
+                  </span>
                 ) : null}
-                {typingHint ? <p className="text-foreground">{typingHint}</p> : null}
-                {seenLabel ? <p>{seenLabel}</p> : null}
-              </div>
-
-              {/* Unified Message Stream */}
-              <div className="min-h-[240px] space-y-3 pr-1 text-foreground sm:pr-2">
-                {messages.length === 0 ? (
-                  <p className="py-16 text-center text-sm text-muted-foreground">
-                    No messages yet. Client and team communication will appear here.
-                  </p>
-                ) : (
-                  messages.map((msg) => {
-                    const latestSeen = latestSeenByUser[msg.senderId];
-                    const isUnreadFromClient = msg.senderId === ticket.clientId && !hasReadMessage(msg, reads[viewerUserId], messagesById);
-                    const isOutbound = msg.senderId === viewerUserId;
-                    const seenByOther =
-                      isOutbound &&
-                      Object.keys(reads)
-                        .filter((uid) => uid !== viewerUserId)
-                        .some((uid) => hasReadMessage(msg, reads[uid], messagesById));
-                    
-                    const isResolved = msg.isInternal && historyActivities.some(
-                      (activity) =>
-                        activity.actionDetails?.resolved === true &&
-                        `${activity.actionDetails?.resolved_message_id ?? ''}` === msg.id,
-                    );
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          'rounded-lg border px-4 py-3 text-sm relative',
-                          msg.isInternal
-                            ? 'border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-100'
-                            : msg.senderId === ticket.clientId
-                              ? 'ml-2 border-primary/30 bg-primary/5 sm:ml-8'
-                              : 'mr-2 border-border bg-muted/40 sm:mr-8',
-                        )}
-                      >
-                        {/* Message Type Indicator */}
-                        {msg.isInternal && (
-                          <div className="absolute -top-2 left-3">
-                            <Badge className="bg-orange-600 text-white text-[10px] px-2 py-0.5">
-                              🔒 INTERNAL
-                            </Badge>
-                          </div>
-                        )}
-                        
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <span className={cn("font-medium", msg.isInternal ? "text-orange-900 dark:text-orange-100" : "text-foreground")}>
-                              {msg.senderName}
-                            </span>
-                            {latestSeen ? (
-                              <p className={cn("text-[11px]", msg.isInternal ? "text-orange-700 dark:text-orange-300" : "text-muted-foreground")}>
-                                {relativeSeenLine(latestSeen)}
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {isUnreadFromClient ? <span className="size-2 rounded-full bg-blue-500" aria-label="Unread message" /> : null}
-                            <Badge variant="outline" className={cn("text-xs capitalize", msg.isInternal ? "border-orange-300 text-orange-700 dark:border-orange-600 dark:text-orange-300" : "")}>
-                              {msg.senderRole}
-                            </Badge>
-                            {isResolved ? (
-                              <Badge className="border border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-300">Resolved</Badge>
-                            ) : null}
-                            <span className={cn("text-xs", msg.isInternal ? "text-orange-700 dark:text-orange-300" : "text-muted-foreground")}>
-                              {msg.createdAt.toLocaleString()} {isOutbound ? (seenByOther ? '✓✓' : '✓') : ''}
-                            </span>
-                            {msg.isInternal && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 hover:bg-orange-100 dark:hover:bg-orange-900/30">
-                                    <MoreHorizontal className="size-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      startPendingNoteAction(async () => {
-                                        await escalateInternalThreadAction(ticket.id, msg.id);
-                                        toast({ title: 'Issue escalated and supervisor notified.' });
-                                      })
-                                    }
-                                    disabled={pendingNoteAction}
-                                  >
-                                    Escalate Issue
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      startPendingNoteAction(async () => {
-                                        if (!nextStage) {
-                                          toast({ title: 'Ticket is already at final stage.' });
-                                          return;
-                                        }
-                                        if (!window.confirm(`Move ticket to ${nextStage.label}?`)) {
-                                          return;
-                                        }
-                                        await updateTicketStageAction(ticket.id, nextStage.id as typeof ticket.stage, 'Moved from Preparer Notes');
-                                        toast({ title: `Moved to ${nextStage.label}` });
-                                      })
-                                    }
-                                    disabled={pendingNoteAction}
-                                  >
-                                    Move to Next Stage
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      startPendingNoteAction(async () => {
-                                        await markInternalThreadResolvedAction(ticket.id, msg.id);
-                                        toast({ title: 'Marked as resolved.' });
-                                      })
-                                    }
-                                    disabled={pendingNoteAction || isResolved}
-                                  >
-                                    Mark as Resolved
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </div>
-                        </div>
-                        <p className={cn("mt-2 whitespace-pre-wrap", msg.isInternal ? "text-orange-900 dark:text-orange-100" : "text-foreground")}>
-                          {msg.isInternal ? (
-                            msg.content.split(/(@[a-zA-Z]+(?:\s+[a-zA-Z]+)?)/g).map((part, idx) =>
-                              part.startsWith('@') ? (
-                                <span key={`${msg.id}-mention-${idx}`} className="font-bold text-orange-600 dark:text-orange-400 bg-orange-200 dark:bg-orange-800 px-1 rounded">
-                                  {part}
-                                </span>
-                              ) : (
-                                <span key={`${msg.id}-text-${idx}`}>{part}</span>
-                              ),
-                            )
-                          ) : (
-                            msg.content
-                          )}
-                        </p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
-
-            {/* Simplified Input with Toggle */}
-            <div className="border-t border-border p-3 sm:p-4">
-              <form
-                action={async (formData: FormData) => {
-                  await sendStaffMessageFormAction(formData);
+                {typingHint ? <span className="text-foreground">{typingHint}</span> : null}
+                {seenLabel ? <span>{seenLabel}</span> : null}
+              </>
+            }
+            composer={
+              <StaffMessageComposer
+                ticketId={ticket.id}
+                internalMode={internalMode}
+                onInternalModeChange={setInternalMode}
+                internalBody={internalBody}
+                onInternalBodyChange={handleInternalBodyChange}
+                mentionOpen={mentionOpen}
+                mentionIndex={mentionIndex}
+                filteredMentionCandidates={filteredMentionCandidates}
+                onMentionSelect={applyMention}
+                onMentionIndexChange={setMentionIndex}
+                onMentionClose={() => setMentionOpen(false)}
+                onTyping={notifyTyping}
+                onSent={() => {
                   setInternalBody('');
                   setMentionOpen(false);
                   setMentionQuery('');
                 }}
-                className="space-y-3"
-              >
-                <input type="hidden" name="ticketId" value={ticket.id} />
-                {internalMode && <input type="hidden" name="internal" value="on" />}
-                
-                {/* Message Type Toggle */}
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="font-medium text-foreground">Send to:</span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setInternalMode(false)}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors",
-                        !internalMode 
-                          ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/50 dark:text-green-300" 
-                          : "border-border bg-background text-muted-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span className="size-2 rounded-full bg-green-500"></span>
-                      Client (Visible)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInternalMode(true)}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors",
-                        internalMode 
-                          ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300" 
-                          : "border-border bg-background text-muted-foreground hover:bg-accent"
-                      )}
-                    >
-                      <span className="size-2 rounded-full bg-orange-500"></span>
-                      Internal Team
-                    </button>
-                  </div>
-                </div>
-
-                {/* Unified Input */}
-                <div className="relative">
-                  <Textarea
-                    name="body"
-                    value={internalMode ? internalBody : undefined}
-                    placeholder={internalMode ? "@mention teammate and add internal note..." : "Add a message for the client..."}
-                    className={cn(
-                      "min-h-[88px] resize-none",
-                      internalMode 
-                        ? "bg-orange-50 border-orange-200 text-orange-900 dark:bg-orange-950/20 dark:border-orange-800 dark:text-orange-100" 
-                        : "bg-background"
-                    )}
-                    required
-                    onInput={() => notifyTyping()}
-                    onChange={internalMode ? (e) => handleInternalBodyChange(e.currentTarget.value) : undefined}
-                    onKeyDown={internalMode ? (e) => {
-                      if (!mentionOpen || filteredMentionCandidates.length === 0) return;
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        setMentionIndex((prev) => (prev + 1) % filteredMentionCandidates.length);
-                      } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        setMentionIndex((prev) => (prev - 1 + filteredMentionCandidates.length) % filteredMentionCandidates.length);
-                      } else if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const candidate = filteredMentionCandidates[mentionIndex];
-                        if (candidate) applyMention(candidate.name);
-                      } else if (e.key === 'Escape') {
-                        setMentionOpen(false);
-                      }
-                    } : undefined}
+              />
+            }
+          >
+            {messages.length === 0 ? (
+              <p className="py-10 text-center text-[13px] text-muted-foreground">
+                No messages yet. Client and team communication will appear here.
+              </p>
+            ) : (
+              messages.map((msg) => {
+                const latestSeen = latestSeenByUser[msg.senderId];
+                const isUnreadFromClient =
+                  msg.senderId === ticket.clientId && !hasReadMessage(msg, reads[viewerUserId], messagesById);
+                const isOutbound = msg.senderId === viewerUserId;
+                const seenByOther =
+                  isOutbound &&
+                  Object.keys(reads)
+                    .filter((uid) => uid !== viewerUserId)
+                    .some((uid) => hasReadMessage(msg, reads[uid], messagesById));
+                const isResolved =
+                  msg.isInternal &&
+                  historyActivities.some(
+                    (activity) =>
+                      activity.actionDetails?.resolved === true &&
+                      `${activity.actionDetails?.resolved_message_id ?? ''}` === msg.id,
+                  );
+                return (
+                  <StaffChatBubble
+                    key={msg.id}
+                    msg={msg}
+                    ticketId={ticket.id}
+                    clientId={ticket.clientId}
+                    viewerUserId={viewerUserId}
+                    isOutbound={isOutbound}
+                    isUnreadFromClient={isUnreadFromClient}
+                    seenByOther={seenByOther}
+                    latestSeen={latestSeen}
+                    isResolved={isResolved}
+                    isInternal={msg.isInternal}
+                    nextStage={nextStage}
+                    pendingNoteAction={pendingNoteAction}
+                    startPendingNoteAction={startPendingNoteAction}
                   />
-                  {internalMode && mentionOpen && filteredMentionCandidates.length > 0 ? (
-                    <div className="absolute bottom-[calc(100%+6px)] left-0 z-20 w-full rounded-md border border-border bg-popover p-1 shadow-lg">
-                      {filteredMentionCandidates.slice(0, 6).map((candidate, index) => (
-                        <button
-                          key={candidate.id}
-                          type="button"
-                          className={cn(
-                            'w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent',
-                            index === mentionIndex && 'bg-accent',
-                          )}
-                          onClick={() => applyMention(candidate.name)}
-                        >
-                          {candidate.name}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="flex justify-end">
-                  <Button 
-                    type="submit" 
-                    className={cn(
-                      internalMode 
-                        ? "border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:hover:bg-orange-950/20" 
-                        : ticketCaseBlackCtaButtonClassName
-                    )}
-                    variant={internalMode ? "outline" : "default"}
-                  >
-                    {internalMode ? "Send Internal Note" : "Send Message"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
+                );
+              })
+            )}
+          </TicketConversationPanel>
         </TabsContent>
-
 
         <TabsContent value="organizer" className="mt-0 border-0 p-0">
           {viewerIsStaff && (
@@ -722,7 +517,7 @@ export function StaffTicketCaseTabs({
         <TabsContent value="documents" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
             {viewerIsStaff && (
-              <div className="rounded-lg border border-border p-4">
+              <div className="rounded-md border border-border p-4">
                 <h3 className="text-sm font-medium mb-3">Request Document</h3>
                 <form
                   action={async (formData: FormData) => {
@@ -763,7 +558,7 @@ export function StaffTicketCaseTabs({
                 </form>
               </div>
             )}
-            <div className="rounded-lg border border-border">
+            <div className="rounded-md border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Documents</div>
               <div className="overflow-x-auto">
               <Table>
@@ -817,7 +612,7 @@ export function StaffTicketCaseTabs({
 
         <TabsContent value="drafts" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
-            <div className="rounded-lg border border-border">
+            <div className="rounded-md border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Tax Return Drafts</div>
               <div className="overflow-x-auto">
               <Table>
@@ -970,7 +765,7 @@ export function StaffTicketCaseTabs({
 
         <TabsContent value="invoices" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
-            <div className="rounded-lg border border-border">
+            <div className="rounded-md border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Invoices</div>
               <div className="divide-y divide-border">
                 {(!ticket.invoices || ticket.invoices.length === 0) && (
@@ -989,7 +784,7 @@ export function StaffTicketCaseTabs({
                         </span>
                         <span
                           className={cn(
-                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            'rounded-sm px-2 py-0.5 text-xs font-medium',
                             inv.status === 'paid'
                               ? 'border border-primary/30 bg-primary/10 text-primary'
                               : 'border border-border bg-muted text-muted-foreground',
@@ -1030,7 +825,7 @@ export function StaffTicketCaseTabs({
                 ))}
               </div>
             </div>
-            <div className="rounded-lg border border-border">
+            <div className="rounded-md border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Uploaded Invoice Files</div>
               <div className="overflow-x-auto">
               <Table>
@@ -1120,7 +915,7 @@ export function StaffTicketCaseTabs({
 
         <TabsContent value="final" className="mt-0 p-3 sm:p-6">
           <div className="space-y-4">
-            <div className="rounded-lg border border-border">
+            <div className="rounded-md border border-border">
               <div className="border-b border-border px-4 py-3 text-sm font-medium">Final filing package</div>
               <div className="overflow-x-auto">
               <Table>

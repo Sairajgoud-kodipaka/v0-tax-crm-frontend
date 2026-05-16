@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { parseAssignedEmployeeId } from '@/lib/constants';
 import { createClient } from '@/utils/supabase/server';
 
 async function requireStaffSupabase() {
@@ -23,7 +24,7 @@ export async function updateClientAssignmentAction(formData: FormData) {
   const employeeIdRaw = String(formData.get('employeeId') ?? '').trim();
   if (!profileId) throw new Error('Invalid client');
 
-  const employeeId = employeeIdRaw === '' ? null : employeeIdRaw;
+  const employeeId = parseAssignedEmployeeId(employeeIdRaw);
 
   const supabase = await requireStaffSupabase();
 
@@ -85,7 +86,7 @@ export async function updateClientRowAction(formData: FormData) {
   if (!profileId) throw new Error('Invalid client');
   if (status !== 'active' && status !== 'archived') throw new Error('Invalid status');
 
-  const employeeId = employeeIdRaw === '' ? null : employeeIdRaw;
+  const employeeId = parseAssignedEmployeeId(employeeIdRaw);
   const supabase = await requireStaffSupabase();
 
   if (employeeId) {

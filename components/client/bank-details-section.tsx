@@ -3,9 +3,9 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FormSelect } from '@/components/ui/form-select';
 
-const selectClassName =
-  'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const selectClassName = 'w-full';
 
 function Req({ children }: { children: React.ReactNode }) {
   return (
@@ -84,15 +84,16 @@ export function BankDetailsSection({ initialValues = {} }: { initialValues?: Ban
           <Label htmlFor="bank-type">
             <Req>Account type</Req>
           </Label>
-          <select
+          <FormSelect
             id="bank-type"
             name="bank-type"
             defaultValue={String(initialValues['bank-type'] ?? 'checking')}
             className={selectClassName}
-          >
-            <option value="checking">Checking</option>
-            <option value="savings">Savings</option>
-          </select>
+            options={[
+              { value: 'checking', label: 'Checking' },
+              { value: 'savings', label: 'Savings' },
+            ]}
+          />
         </div>
 
         <div className="space-y-2 sm:col-span-2">

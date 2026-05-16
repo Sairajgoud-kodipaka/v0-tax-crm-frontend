@@ -4,12 +4,10 @@ import { useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { YesNoFormSelect } from '@/components/client/yes-no-form-select';
 import { cn } from '@/lib/utils';
 
-const selectClassName = cn(
-  'flex h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none',
-  'focus-visible:ring-2 focus-visible:ring-ring',
-);
+const selectClassName = 'w-full max-w-xs';
 
 function Req({ children }: { children: React.ReactNode }) {
   return (
@@ -83,15 +81,12 @@ export function IncomeSourcesSection({ initialValues = {} }: { initialValues?: I
         <Label htmlFor="inc-src-overtime" className="text-sm font-normal leading-snug">
           Did you receive any qualified overtime pay in 2024?
         </Label>
-        <select
+        <YesNoFormSelect
           id="inc-src-overtime"
           name="inc-src-overtime"
           defaultValue={String(initialValues['inc-src-overtime'] ?? 'no')}
           className={selectClassName}
-        >
-          <option value="no">No</option>
-          <option value="yes">Yes</option>
-        </select>
+        />
       </div>
 
       <div className="space-y-4 border-t border-border pt-8">
@@ -112,15 +107,12 @@ export function IncomeSourcesSection({ initialValues = {} }: { initialValues?: I
               <Label htmlFor="inc-src-tp-fbar">
                 <Req>Taxpayer fbar</Req>
               </Label>
-              <select
+              <YesNoFormSelect
                 id="inc-src-tp-fbar"
                 name="inc-src-tp-fbar"
                 defaultValue={String(initialValues['inc-src-tp-fbar'] ?? 'no')}
                 className={selectClassName}
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
+              />
               <p className="text-xs text-muted-foreground">
                 Select yes if you have foreign financial assets amounting to $10,000 or more.
               </p>
@@ -129,15 +121,12 @@ export function IncomeSourcesSection({ initialValues = {} }: { initialValues?: I
               <Label htmlFor="inc-src-sp-fbar">
                 <Req>Spouse fbar</Req>
               </Label>
-              <select
+              <YesNoFormSelect
                 id="inc-src-sp-fbar"
                 name="inc-src-sp-fbar"
                 defaultValue={String(initialValues['inc-src-sp-fbar'] ?? 'no')}
                 className={selectClassName}
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
+              />
               <p className="text-xs text-muted-foreground">
                 Select yes if your spouse has foreign financial assets amounting to $10,000 or more.
               </p>
@@ -148,29 +137,23 @@ export function IncomeSourcesSection({ initialValues = {} }: { initialValues?: I
               <Label htmlFor="inc-src-tp-fatca">
                 <Req>Taxpayer fatca</Req>
               </Label>
-              <select
+              <YesNoFormSelect
                 id="inc-src-tp-fatca"
                 name="inc-src-tp-fatca"
                 defaultValue={String(initialValues['inc-src-tp-fatca'] ?? 'no')}
                 className={selectClassName}
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="inc-src-sp-fatca">
                 <Req>Spouse fatca</Req>
               </Label>
-              <select
+              <YesNoFormSelect
                 id="inc-src-sp-fatca"
                 name="inc-src-sp-fatca"
                 defaultValue={String(initialValues['inc-src-sp-fatca'] ?? 'no')}
                 className={selectClassName}
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
+              />
             </div>
           </div>
         </div>
@@ -188,15 +171,12 @@ export function IncomeSourcesSection({ initialValues = {} }: { initialValues?: I
           <Label htmlFor="inc-src-mf-india" className="text-sm font-normal leading-snug">
             <Req>Do you hold Mutual Funds or other investments in India or anywhere outside the US?</Req>
           </Label>
-          <select
+          <YesNoFormSelect
             id="inc-src-mf-india"
             name="inc-src-mf-india"
             defaultValue={String(initialValues['inc-src-mf-india'] ?? 'no')}
             className={selectClassName}
-          >
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
+          />
         </div>
 
         <div className="rounded-md border border-border bg-muted/30 p-4 text-xs leading-relaxed text-muted-foreground sm:text-sm">

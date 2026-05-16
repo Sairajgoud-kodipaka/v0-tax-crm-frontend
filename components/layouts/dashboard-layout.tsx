@@ -174,7 +174,7 @@ const StageNav = memo(function StageNav({
                     });
                   }}
                   className={cn(
-                    'relative w-full flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    'relative w-full flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -223,7 +223,7 @@ const NotificationsNav = memo(function NotificationsNav({
             <Link
               href={href}
               className={cn(
-                'relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                'relative flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
                 expanded ? 'px-3' : 'justify-center px-0',
                 isActive
                   ? 'bg-primary text-primary-foreground shadow-sm'
@@ -279,7 +279,7 @@ const WorkspaceNav = memo(function WorkspaceNav({
                 <Link
                   href={item.href}
                   className={cn(
-                    'relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    'relative flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -329,7 +329,7 @@ const ClientNav = memo(function ClientNav({
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    'flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-[#E0E1DD] text-[#0D1B2A] shadow-sm'
@@ -564,7 +564,7 @@ export function DashboardLayout({
                 variant="outline"
                 onClick={handleLogout}
                 className={cn(
-                  'h-10 w-full justify-start gap-2 rounded-xl border-sidebar-border bg-background/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent',
+                  'h-10 w-full justify-start gap-2 rounded-md border-sidebar-border bg-background/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent',
                   collapsed && 'justify-center px-0',
                   !isClient && 'text-destructive hover:bg-destructive/10 hover:text-destructive',
                 )}

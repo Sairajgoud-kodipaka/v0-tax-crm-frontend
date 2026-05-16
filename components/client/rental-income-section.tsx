@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
+import { FormSelect } from '@/components/ui/form-select';
 import { ticketCaseBlackCtaButtonClassName } from '@/lib/ticket-case-tab-styles';
 import { cn } from '@/lib/utils';
 import {
@@ -35,8 +36,7 @@ function Req({ children }: { children: React.ReactNode }) {
   );
 }
 
-const selectClassName =
-  'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const selectClassName = 'w-full';
 
 type RentalPropertyRow = {
   id: string;
@@ -223,17 +223,18 @@ export function RentalIncomeSection({ initialRows = [] }: { initialRows?: unknow
                   <Label htmlFor="rent-property-type">
                     <Req>Property type</Req>
                   </Label>
-                  <select
+                  <FormSelect
                     id="rent-property-type"
                     name="rent-property-type"
                     className={selectClassName}
                     defaultValue={editingRow?.propertyType || 'residencial'}
                     required
-                  >
-                    <option value="residencial">Residencial</option>
-                    <option value="commercial">Commercial</option>
-                    <option value="mixed-use">Mixed Use</option>
-                  </select>
+                    options={[
+                      { value: 'residencial', label: 'Residencial' },
+                      { value: 'commercial', label: 'Commercial' },
+                      { value: 'mixed-use', label: 'Mixed Use' },
+                    ]}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="rent-income-received">Income received</Label>

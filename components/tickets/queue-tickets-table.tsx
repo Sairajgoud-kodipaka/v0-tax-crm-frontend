@@ -41,7 +41,7 @@ export function QueueTicketsTable({
   emptyMessage: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">

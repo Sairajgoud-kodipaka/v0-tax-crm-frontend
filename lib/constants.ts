@@ -1,5 +1,14 @@
 import { TicketStage, TicketStatus, UserRole, TicketPriority } from './types';
 
+/** Radix Select cannot use empty string as a value — map to null in server actions. */
+export const UNASSIGNED_SELECT_VALUE = '__unassigned__';
+
+export function parseAssignedEmployeeId(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === UNASSIGNED_SELECT_VALUE) return null;
+  return trimmed;
+}
+
 export const TICKET_STAGES: Record<TicketStage, { label: string; color: string; description: string }> = {
   'pending-info': {
     label: 'Pending Info',

@@ -73,7 +73,7 @@ export default async function EmployeeDashboard() {
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${TICKET_STAGES[ticket.stage].color}`}
+                        className={`px-3 py-1 rounded-sm text-xs font-medium ${TICKET_STAGES[ticket.stage].color}`}
                       >
                         {TICKET_STAGES[ticket.stage].label}
                       </span>

@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { FormSelect } from '@/components/ui/form-select';
 import { US_STATE_OPTIONS } from '@/lib/us-states';
 
 const selectClassName =
@@ -247,19 +248,15 @@ export function ResidencyRecordsSection({
                 <Label htmlFor={f.state}>
                   <Req>State</Req>
                 </Label>
-                <select
+                <FormSelect
                   id={f.state}
                   name={f.state}
                   className={selectClassName}
                   required
                   defaultValue={editingRow?.stateCode || ''}
-                >
-                  {US_STATE_OPTIONS.map((o) => (
-                    <option key={o.value || 'placeholder'} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select state"
+                  options={US_STATE_OPTIONS.filter((o) => o.value !== '')}
+                />
               </div>
 
               <div className="space-y-2">

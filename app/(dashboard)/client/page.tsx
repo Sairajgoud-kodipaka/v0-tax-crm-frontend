@@ -69,7 +69,7 @@ export default async function ClientDashboard() {
         </Dialog>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -106,7 +106,7 @@ export default async function ClientDashboard() {
                     <TableCell className="text-right">
                       <Link href={`/client/cases/${ticket.id}`}>
                         <span
-                          className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${st.className}`}
+                          className={`inline-flex rounded-sm px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${st.className}`}
                         >
                           {st.label}
                         </span>

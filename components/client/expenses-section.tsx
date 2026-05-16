@@ -5,12 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { YesNoFormSelect } from '@/components/client/yes-no-form-select';
 import { cn } from '@/lib/utils';
 
-const selectClassName = cn(
-  'flex h-9 w-full min-w-[120px] shrink-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none sm:w-auto',
-  'focus-visible:ring-2 focus-visible:ring-ring',
-);
+const selectClassName = 'w-full min-w-[120px] shrink-0 sm:w-auto';
 
 /** First four: full-width amount/description fields per reference UI */
 const EXPENSE_TEXT_FIELDS: { id: string; label: string }[] = [
@@ -97,15 +95,12 @@ export function ExpensesSection({ initialValues = {} }: { initialValues?: Expens
         <Label htmlFor="exp-vehicle-loan" className="text-sm font-normal leading-snug sm:min-w-0 sm:flex-1">
           Did you purchase a personal-use vehicle in 2024 and pay interest on a passenger vehicle loan during the year?
         </Label>
-        <select
+        <YesNoFormSelect
           id="exp-vehicle-loan"
           name="exp-vehicle-loan"
           defaultValue={String(initialValues['exp-vehicle-loan'] ?? 'no')}
           className={selectClassName}
-        >
-          <option value="no">No</option>
-          <option value="yes">Yes</option>
-        </select>
+        />
       </div>
 
       <div className="space-y-2">

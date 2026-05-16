@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FormSelect } from '@/components/ui/form-select';
+import { UNASSIGNED_SELECT_VALUE } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 type EmployeeOpt = { id: string; full_name: string | null };
@@ -38,7 +40,7 @@ export function ClientsDirectory(props: {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <form id="clients-directory-filters" method="get" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-[200px] flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground" htmlFor="cq">
                 Search
@@ -56,27 +58,28 @@ export function ClientsDirectory(props: {
               <label className="text-xs font-medium text-muted-foreground" htmlFor="cass">
                 Assigned preparer
               </label>
-              <select
+              <FormSelect
                 id="cass"
                 name="assigned"
                 defaultValue={initialAssigned}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onChange={(e) => e.currentTarget.form?.requestSubmit()}
-              >
-                <option value="all">All clients</option>
-                <option value="unassigned">Unassigned only</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.full_name?.trim() || e.id.slice(0, 8)}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: 'all', label: 'All clients' },
+                  { value: 'unassigned', label: 'Unassigned only' },
+                  ...employees.map((e) => ({
+                    value: e.id,
+                    label: e.full_name?.trim() || e.id.slice(0, 8),
+                  })),
+                ]}
+                onValueChange={() => {
+                  (document.getElementById('clients-directory-filters') as HTMLFormElement | null)?.requestSubmit();
+                }}
+              />
             </div>
           </form>
         </CardContent>
       </Card>
 
-      <div className="rounded-xl border">
+      <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -105,19 +108,20 @@ export function ClientsDirectory(props: {
                   <TableCell className="font-medium">{row.full_name?.trim() || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{row.email ?? '—'}</TableCell>
                   <TableCell>
-                    <select
+                    <FormSelect
                       form={`client-row-${row.profile_id}`}
                       name="employeeId"
-                      defaultValue={row.assigned_employee_id ?? ''}
-                      className="h-9 max-w-[11rem] rounded-md border border-input bg-background px-2 text-xs"
-                    >
-                      <option value="">Unassigned</option>
-                      {employees.map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.full_name?.trim() || e.id.slice(0, 8)}
-                        </option>
-                      ))}
-                    </select>
+                      defaultValue={row.assigned_employee_id ?? UNASSIGNED_SELECT_VALUE}
+                      size="sm"
+                      options={[
+                        { value: UNASSIGNED_SELECT_VALUE, label: 'Unassigned' },
+                        ...employees.map((e) => ({
+                          value: e.id,
+                          label: e.full_name?.trim() || e.id.slice(0, 8),
+                        })),
+                      ]}
+                      triggerClassName="h-9 max-w-[11rem] text-xs"
+                    />
                     {row.assigned_employee_id ? (
                       <Link
                         href={`${basePath}/clients?employeeView=${encodeURIComponent(row.assigned_employee_id)}`}
@@ -149,15 +153,17 @@ export function ClientsDirectory(props: {
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    <select
+                    <FormSelect
                       form={`client-row-${row.profile_id}`}
                       name="status"
                       defaultValue={row.status}
-                      className="h-9 w-full max-w-[8rem] rounded-md border border-input bg-background px-2 text-xs"
-                    >
-                      <option value="active">Active</option>
-                      <option value="archived">Archived</option>
-                    </select>
+                      size="sm"
+                      options={[
+                        { value: 'active', label: 'Active' },
+                        { value: 'archived', label: 'Archived' },
+                      ]}
+                      triggerClassName="h-9 w-full max-w-[8rem] text-xs"
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <form id={`client-row-${row.profile_id}`} action={updateClientRowAction} className="inline-flex">

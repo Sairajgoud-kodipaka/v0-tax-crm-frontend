@@ -1,23 +1,30 @@
+'use client';
+
+import { FormSelect } from '@/components/ui/form-select';
 import { VISA_TYPE_OPTIONS } from '@/lib/visa-type-options';
 
 export function VisaTypeSelect({
   id,
   name,
   className,
+  triggerClassName,
   defaultValue = '',
 }: {
   id: string;
   name?: string;
-  className: string;
+  className?: string;
+  triggerClassName?: string;
   defaultValue?: string;
 }) {
   return (
-    <select id={id} name={name} defaultValue={defaultValue} className={className}>
-      {VISA_TYPE_OPTIONS.map((o) => (
-        <option key={o.value || 'dash'} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <FormSelect
+      id={id}
+      name={name}
+      defaultValue={defaultValue}
+      options={VISA_TYPE_OPTIONS.filter((o) => o.value !== '').map((o) => ({ value: o.value, label: o.label }))}
+      placeholder="Select visa type"
+      className={className}
+      triggerClassName={triggerClassName}
+    />
   );
 }

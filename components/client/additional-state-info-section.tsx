@@ -1,13 +1,11 @@
 'use client';
 
+import { YesNoFormSelect } from '@/components/client/yes-no-form-select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-const selectClassName = cn(
-  'flex h-9 w-full max-w-xl rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none',
-  'focus-visible:ring-2 focus-visible:ring-ring',
-);
+const selectClassName = 'w-full max-w-xl';
 
 const questions = [
   {
@@ -40,10 +38,7 @@ export function AdditionalStateInfoSection() {
             <Label htmlFor={q.id} className="text-sm font-normal leading-snug text-foreground">
               {q.label}
             </Label>
-            <select id={q.id} name={q.id} defaultValue="no" className={selectClassName}>
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
+            <YesNoFormSelect id={q.id} name={q.id} defaultValue="no" className={selectClassName} />
           </div>
         ))}
 

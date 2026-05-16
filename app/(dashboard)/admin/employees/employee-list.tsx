@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useActionState, useMemo, useState } from 'react';
 import { Edit2, LayoutList, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FormSelect } from '@/components/ui/form-select';
 import { Input } from '@/components/ui/input';
 import { deleteEmployeeAction, updateEmployeeAction } from '@/app/actions/admin-employees';
 
@@ -37,14 +38,14 @@ function EmployeeRow({ employee }: { employee: EmployeeListItem }) {
             <input type="hidden" name="userId" value={employee.id} />
             <div className="grid gap-3 md:grid-cols-2">
               <Input name="fullName" defaultValue={employee.name} />
-              <select
+              <FormSelect
                 name="role"
                 defaultValue={employee.role === 'client' ? 'employee' : employee.role}
-                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="employee">Employee</option>
-                <option value="admin">Admin</option>
-              </select>
+                options={[
+                  { value: 'employee', label: 'Employee' },
+                  { value: 'admin', label: 'Admin' },
+                ]}
+              />
             </div>
             <div className="flex items-center gap-2">
               <Button type="submit" size="sm">
@@ -149,16 +150,16 @@ export function EmployeeList({ employees }: { employees: EmployeeListItem[] }) {
           <label className="text-xs font-medium text-muted-foreground" htmlFor="emp-filter-role">
             Role
           </label>
-          <select
+          <FormSelect
             id="emp-filter-role"
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as 'all' | 'admin' | 'employee')}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="all">All roles</option>
-            <option value="employee">Employees only</option>
-            <option value="admin">Admins only</option>
-          </select>
+            onValueChange={(v) => setRoleFilter(v as 'all' | 'admin' | 'employee')}
+            options={[
+              { value: 'all', label: 'All roles' },
+              { value: 'employee', label: 'Employees only' },
+              { value: 'admin', label: 'Admins only' },
+            ]}
+          />
         </div>
         <Button type="button" variant="outline" size="sm" className="sm:mb-0.5" asChild>
           <Link href="/admin/clients">Browse all clients & tickets</Link>

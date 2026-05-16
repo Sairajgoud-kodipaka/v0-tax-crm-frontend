@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FormSelect } from '@/components/ui/form-select';
 import { Label } from '@/components/ui/label';
 import { FILING_TYPES } from '@/lib/constants';
 import { createClientTicketAction } from '@/app/actions/client-tickets';
@@ -31,22 +32,14 @@ export function CreateTicketForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="svc">Service</Label>
-        <select
+        <FormSelect
           id="svc"
           name="filingType"
-          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-          defaultValue=""
           required
-        >
-          <option value="" disabled>
-            Select a service
-          </option>
-          {FILING_TYPES.map((service) => (
-            <option key={service} value={service}>
-              {service}
-            </option>
-          ))}
-        </select>
+          placeholder="Select a service"
+          defaultValue={FILING_TYPES[0]}
+          options={FILING_TYPES.map((service) => ({ value: service, label: service }))}
+        />
       </div>
       <div className="flex items-center justify-end gap-2">
         <SubmitButton />

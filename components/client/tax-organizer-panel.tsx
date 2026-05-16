@@ -21,7 +21,9 @@ import { RentalIncomeSection } from '@/components/client/rental-income-section';
 import { ExpensesSection } from '@/components/client/expenses-section';
 import { ElectricHybridSection } from '@/components/client/electric-hybrid-section';
 import { DaycareExpensesSection } from '@/components/client/daycare-expenses-section';
+import { YesNoFormSelect } from '@/components/client/yes-no-form-select';
 import { VisaTypeSelect } from '@/components/client/visa-type-select';
+import { FormSelect } from '@/components/ui/form-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,8 +48,7 @@ function Req({ children }: { children: React.ReactNode }) {
   );
 }
 
-const selectClassName =
-  'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const selectClassName = 'w-full max-w-xs';
 
 export type TaxOrganizerPanelProps = {
   /** When set, Save persists JSON to Supabase for this ticket */
@@ -204,44 +205,20 @@ function TaxpayerDetailsForm({ defaultValues }: { defaultValues: TaxpayerOrganiz
 
         <div className="space-y-2 sm:col-span-2 lg:col-span-3 lg:max-w-xl">
           <Label htmlFor="tp-visa-change">Was there a change in Visa during 2024?</Label>
-          <select
-            id="tp-visa-change"
-            name="tp-visa-change"
-            defaultValue={v['tp-visa-change'] ?? 'no'}
-            className={selectClassName}
-          >
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
+          <YesNoFormSelect id="tp-visa-change" name="tp-visa-change" defaultValue={v['tp-visa-change'] ?? 'no'} className={selectClassName} />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="tp-reside-2024">
             <Req>Did you reside at least 6 months in US during 2024?</Req>
           </Label>
-          <select
-            id="tp-reside-2024"
-            name="tp-reside-2024"
-            defaultValue={v['tp-reside-2024'] ?? 'no'}
-            className={selectClassName}
-          >
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
+          <YesNoFormSelect id="tp-reside-2024" name="tp-reside-2024" defaultValue={v['tp-reside-2024'] ?? 'no'} className={selectClassName} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="tp-reside-2025">
             <Req>Will you reside at least 6 months in US during 2025?</Req>
           </Label>
-          <select
-            id="tp-reside-2025"
-            name="tp-reside-2025"
-            defaultValue={v['tp-reside-2025'] ?? 'no'}
-            className={selectClassName}
-          >
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
+          <YesNoFormSelect id="tp-reside-2025" name="tp-reside-2025" defaultValue={v['tp-reside-2025'] ?? 'no'} className={selectClassName} />
         </div>
         <div className="hidden lg:block" aria-hidden />
 
@@ -249,17 +226,18 @@ function TaxpayerDetailsForm({ defaultValues }: { defaultValues: TaxpayerOrganiz
           <Label htmlFor="tp-marital">
             <Req>Marrital Status at the end of 2024</Req>
           </Label>
-          <select
+          <FormSelect
             id="tp-marital"
             name="tp-marital"
             defaultValue={v['tp-marital'] ?? 'single'}
             className={selectClassName}
-          >
-            <option value="single">Single</option>
-            <option value="married">Married</option>
-            <option value="legally-seperated">Legally Seperated</option>
-            <option value="widow-widower">Widow/Widower</option>
-          </select>
+            options={[
+              { value: 'single', label: 'Single' },
+              { value: 'married', label: 'Married' },
+              { value: 'legally-seperated', label: 'Legally Seperated' },
+              { value: 'widow-widower', label: 'Widow/Widower' },
+            ]}
+          />
         </div>
 
         <div className="space-y-2 sm:col-span-2 lg:col-span-3">
