@@ -4,7 +4,7 @@ A Next.js tax return management and client portal system.
 
 ## Getting Started
 
-First, run the development server:
+First, run the development server :
 
 ```bash
 npm run dev
