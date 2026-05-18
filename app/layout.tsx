@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Source_Serif_4 } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -17,6 +17,12 @@ const sourceSerif = Source_Serif_4({
 })
 
 const BASE_URL = 'https://www.taxfiley.com';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -78,8 +84,9 @@ export const metadata: Metadata = {
     creator: '@taxfiley',
   },
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: '/apple-icon.png',
+    icon: [{ url: '/tf2.png', type: 'image/png' }],
+    shortcut: '/tf2.png',
+    apple: '/tf2.png',
   },
   alternates: {
     canonical: BASE_URL,

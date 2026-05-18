@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { updateTicketStageAction } from '@/app/actions/tickets';
 import { logTicketActivityAction } from '@/app/actions/activity';
+import { createTicketNotificationWithEmail } from '@/lib/email/ticket-notification-email';
 import type { TicketStage } from '@/lib/types';
 
 const DRAFT_SENT: TicketStage = 'draft-sent';
@@ -119,14 +120,14 @@ export async function uploadTicketDocumentAction(
     (role === 'admin' || role === 'employee') &&
     stageBeforeDraftFlow === 'draft-sent'
   ) {
-    const { error: nErr } = await supabase.rpc('create_ticket_notification', {
+    const res = await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: ticket.client_id,
       p_ticket_id: ticketId,
       p_type: 'document',
-      p_title: 'Draft return ready',
-      p_body: `Your draft return is ready. Please log in to review and approve. Case #${ticket.public_ref}.`,
+      templateId: 'document-draft-ready-client',
+      vars: { casePublicRef: String(ticket.public_ref) },
     });
-    if (nErr) console.error('create_ticket_notification:', nErr.message);
+    if (!res.ok) console.error('create_ticket_notification:', res.error);
   }
 
   if (
@@ -140,31 +141,29 @@ export async function uploadTicketDocumentAction(
       .eq('id', user.id)
       .maybeSingle();
     const nm = clientProfile?.full_name?.trim() || 'Client';
-    const { error: assignedUploadErr } = await supabase.rpc('create_ticket_notification', {
+    const resUpload = await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: ticket.assigned_employee_id,
       p_ticket_id: ticketId,
       p_type: 'document',
-      p_title: ticket.stage === '8879-sent' ? 'Signed Form 8879 uploaded' : 'Client uploaded documents',
-      p_body:
-        ticket.stage === '8879-sent'
-          ? `${nm} uploaded signed Form 8879. Ready to file. Case #${ticket.public_ref}.`
-          : `${nm} uploaded new documents on Case #${ticket.public_ref}.`,
+      templateId:
+        ticket.stage === '8879-sent' ? 'document-client-upload-8879' : 'document-client-upload-employee',
+      vars: { clientName: nm, casePublicRef: String(ticket.public_ref) },
     });
-    if (assignedUploadErr) console.error('create_ticket_notification:', assignedUploadErr.message);
+    if (!resUpload.ok) console.error('create_ticket_notification:', resUpload.error);
   }
 
   if (role === 'employee' || role === 'admin') {
     const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
     for (const admin of admins ?? []) {
       if (admin.id === user.id) continue;
-      const { error: adminDocErr } = await supabase.rpc('create_ticket_notification', {
+      const resAdmin = await createTicketNotificationWithEmail(supabase, {
         p_recipient_id: admin.id,
         p_ticket_id: ticketId,
         p_type: 'document',
-        p_title: 'Ticket documents updated',
-        p_body: `Documents were updated in Case #${ticket.public_ref}.`,
+        templateId: 'document-updated-admin',
+        vars: { casePublicRef: String(ticket.public_ref) },
       });
-      if (adminDocErr) console.error('create_ticket_notification:', adminDocErr.message);
+      if (!resAdmin.ok) console.error('create_ticket_notification:', resAdmin.error);
     }
   }
 
@@ -272,14 +271,14 @@ export async function replaceTicketDocumentAction(formData: FormData) {
     (role === 'admin' || role === 'employee') &&
     stageBeforeReplaceDraft === 'draft-sent'
   ) {
-    const { error: nErr } = await supabase.rpc('create_ticket_notification', {
+    const resReplace = await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: ticket.client_id,
       p_ticket_id: doc.ticket_id,
       p_type: 'document',
-      p_title: 'Draft return ready',
-      p_body: `Your draft return is ready. Please log in to review and approve. Case #${ticket.public_ref}.`,
+      templateId: 'document-draft-ready-client',
+      vars: { casePublicRef: String(ticket.public_ref) },
     });
-    if (nErr) console.error('create_ticket_notification:', nErr.message);
+    if (!resReplace.ok) console.error('create_ticket_notification:', resReplace.error);
   }
 
   const ticketId = doc.ticket_id;
@@ -345,15 +344,20 @@ export async function requestDocumentAction(ticketId: string, documentType: stri
   });
 
   // Send notification to client
-  const { data: ticket } = await supabase.from('tickets').select('client_id').eq('id', ticketId).single();
+  const { data: ticket } = await supabase.from('tickets').select('client_id, public_ref').eq('id', ticketId).single();
   if (ticket) {
-    await supabase.rpc('create_ticket_notification', {
+    const resReq = await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: ticket.client_id,
       p_ticket_id: ticketId,
       p_type: 'document',
-      p_title: 'Document Requested',
-      p_body: `Please upload the requested document: ${documentType}${note ? ` - ${note}` : ''}. Case #${ticket.public_ref}.`,
+      templateId: 'document-requested-client',
+      vars: {
+        documentType,
+        note: note ?? '',
+        casePublicRef: String(ticket.public_ref),
+      },
     });
+    if (!resReq.ok) console.error('create_ticket_notification:', resReq.error);
   }
 
   revalidatePath('/admin/tickets/' + ticketId);

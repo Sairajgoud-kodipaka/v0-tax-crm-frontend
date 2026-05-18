@@ -6,6 +6,16 @@ import { XIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+/** Radix warns if Content has no Description; recurse so we only suppress aria when none is mounted. */
+function hasNestedDialogDescription(children: React.ReactNode): boolean {
+  return React.Children.toArray(children).some((child) => {
+    if (!React.isValidElement(child)) return false
+    const p = child.props as { children?: React.ReactNode; 'data-slot'?: string }
+    if (p['data-slot'] === 'dialog-description') return true
+    return p.children ? hasNestedDialogDescription(p.children) : false
+  })
+}
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -56,6 +66,9 @@ function DialogContent({
   showCloseButton?: boolean
   overlayClassName?: string
 }) {
+  const shouldSuppressDescriptionAria =
+    !('aria-describedby' in props) && !hasNestedDialogDescription(children)
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay className={overlayClassName} />
@@ -66,6 +79,7 @@ function DialogContent({
           className,
         )}
         {...props}
+        {...(shouldSuppressDescriptionAria ? { 'aria-describedby': undefined } : {})}
       >
         {children}
         {showCloseButton && (

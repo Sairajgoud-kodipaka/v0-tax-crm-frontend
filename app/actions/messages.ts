@@ -4,6 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { logTicketActivityAction } from '@/app/actions/activity';
+import {
+  createTicketNotificationWithEmail,
+  type EmailTemplateId,
+} from '@/lib/email/ticket-notification-email';
 
 function extractMentions(text: string): string[] {
   const names: string[] = [];
@@ -70,11 +74,10 @@ export async function sendTicketMessageAction(
     p_recipient_id: string;
     p_ticket_id: string;
     p_type: string;
-    p_title: string;
-    p_body: string;
+    templateId: EmailTemplateId;
+    vars: Record<string, string>;
   }) => {
-    const { error: nErr } = await supabase.rpc('create_ticket_notification', args);
-    if (nErr) console.error('create_ticket_notification:', nErr.message);
+    await createTicketNotificationWithEmail(supabase, args);
   };
 
   if (ticket && me?.role === 'client' && !isInternal && ticket.assigned_employee_id) {
@@ -83,28 +86,26 @@ export async function sendTicketMessageAction(
       p_recipient_id: ticket.assigned_employee_id,
       p_ticket_id: ticketId,
       p_type: 'message',
-      p_title: `${clientName} sent you a message`,
-      p_body: `${caseLabel}`,
+      templateId: 'message-client-to-assignee',
+      vars: { clientName, caseLabel },
     });
   } else if (ticket && (me?.role === 'admin' || me?.role === 'employee') && !isInternal) {
-    const title =
-      me.role === 'employee'
-        ? 'Your preparer sent you a message'
-        : 'Staff sent you a message';
+    const templateId: EmailTemplateId =
+      me.role === 'employee' ? 'message-preparer-to-client' : 'message-admin-to-client';
     await notify({
       p_recipient_id: ticket.client_id,
       p_ticket_id: ticketId,
       p_type: 'message',
-      p_title: title,
-      p_body: `${caseLabel}`,
+      templateId,
+      vars: { caseLabel },
     });
   } else if (ticket && me?.role === 'admin' && isInternal && ticket.assigned_employee_id) {
     await notify({
       p_recipient_id: ticket.assigned_employee_id,
       p_ticket_id: ticketId,
       p_type: 'message',
-      p_title: 'Admin left a note',
-      p_body: `Admin left a note on ${caseLabel}.`,
+      templateId: 'message-admin-note-to-assignee',
+      vars: { caseLabel },
     });
   }
 
@@ -125,8 +126,11 @@ export async function sendTicketMessageAction(
           p_recipient_id: target.id,
           p_ticket_id: ticketId,
           p_type: 'mention',
-          p_title: '@Mention in Preparer Notes',
-          p_body: `${me?.full_name?.trim() || 'Staff'} mentioned you in ${caseLabel}.`,
+          templateId: 'message-mention-internal',
+          vars: {
+            staffName: me?.full_name?.trim() || 'Staff',
+            caseLabel,
+          },
         });
       }
     }
@@ -173,14 +177,16 @@ export async function escalateInternalThreadAction(ticketId: string, messageId: 
   const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
   for (const admin of admins ?? []) {
     if (admin.id === user.id) continue;
-    const { error: nErr } = await supabase.rpc('create_ticket_notification', {
+    await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: admin.id,
       p_ticket_id: ticketId,
       p_type: 'escalation',
-      p_title: 'Escalation',
-      p_body: `${me.full_name?.trim() || 'Staff'} escalated an issue in Case #${ticket?.public_ref ?? ticketId}.`,
+      templateId: 'escalation-to-admin',
+      vars: {
+        staffName: me.full_name?.trim() || 'Staff',
+        casePublicRef: String(ticket?.public_ref ?? ticketId),
+      },
     });
-    if (nErr) console.error('create_ticket_notification:', nErr.message);
   }
 
   revalidatePath('/admin/tickets/' + ticketId);

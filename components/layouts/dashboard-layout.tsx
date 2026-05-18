@@ -1,9 +1,9 @@
 'use client';
 
-import { type ReactNode, useEffect, useState, useCallback, useTransition, memo } from 'react';
+import { type ReactNode, useEffect, useState, useCallback, useTransition, memo, useMemo } from 'react';
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import {
   Archive,
@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   ListTodo,
   LogOut,
+  Menu,
   Mail,
   MessageSquare,
   Phone,
@@ -42,6 +43,7 @@ import type { SessionUser } from '@/lib/session-user';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { GlobalSearch } from '@/components/search/global-search';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
@@ -174,7 +176,7 @@ const StageNav = memo(function StageNav({
                     });
                   }}
                   className={cn(
-                    'relative w-full flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
+                    'relative flex w-full items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors',
                     expanded ? 'px-3' : 'justify-center px-0',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -348,6 +350,165 @@ const ClientNav = memo(function ClientNav({
   );
 });
 
+type DashboardSidebarColumnProps = {
+  pathname: string;
+  sidebarDisplayName: string;
+  sidebarInitial: string;
+  /** When false (mobile drawer), nav always shows labels and no collapse control. */
+  interactiveCollapse: boolean;
+  showExpanded: boolean;
+  collapsed: boolean;
+  onToggleExpand: () => void;
+  isAdmin: boolean;
+  isEmployee: boolean;
+  isAdminOrEmployee: boolean;
+  isClient: boolean;
+  baseUrl: string;
+  currentStage?: string;
+  workspaceItems: Array<{ href: string; label: string; icon: string }>;
+  clientSidebarNavigation: Array<{ href: string; label: string }>;
+  notificationsHref: string;
+  sidebarNotificationCount: number;
+  stageAttentionCounts: Record<string, number>;
+  onLogout: () => void | Promise<void>;
+};
+
+function DashboardSidebarColumn({
+  pathname,
+  sidebarDisplayName,
+  sidebarInitial,
+  interactiveCollapse,
+  showExpanded,
+  collapsed,
+  onToggleExpand,
+  isAdmin,
+  isEmployee,
+  isAdminOrEmployee,
+  isClient,
+  baseUrl,
+  currentStage,
+  workspaceItems,
+  clientSidebarNavigation,
+  notificationsHref,
+  sidebarNotificationCount,
+  stageAttentionCounts,
+  onLogout,
+}: DashboardSidebarColumnProps) {
+  const railExpanded = interactiveCollapse ? showExpanded : true;
+  const railCollapsed = interactiveCollapse ? collapsed : false;
+
+  return (
+    <>
+      <div
+        className={cn(
+          'flex shrink-0 items-center gap-3 border-b border-sidebar-border py-3',
+          railExpanded ? 'px-4' : 'flex-col gap-3 px-2 pt-4',
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-1 ring-black/5">
+            <span className="text-sm font-bold tracking-tight">{sidebarInitial}</span>
+          </div>
+          {railExpanded && (
+            <span className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
+              {sidebarDisplayName}
+            </span>
+          )}
+        </div>
+        {interactiveCollapse ? (
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            aria-expanded={railExpanded}
+            aria-label={railExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            className={cn(
+              'flex size-9 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-background/80 text-muted-foreground shadow-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              railExpanded ? '' : 'mx-auto',
+            )}
+          >
+            {railExpanded ? (
+              <ChevronsLeft className="size-[18px] stroke-[1.75]" />
+            ) : (
+              <ChevronsRight className="size-[18px] stroke-[1.75]" />
+            )}
+          </button>
+        ) : null}
+      </div>
+
+      <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+        {isAdminOrEmployee && (
+          <NotificationsNav
+            collapsed={railCollapsed}
+            expanded={railExpanded}
+            pathname={pathname}
+            href={notificationsHref}
+            notificationCount={sidebarNotificationCount}
+          />
+        )}
+
+        {isAdminOrEmployee && (
+          <StageNav
+            collapsed={railCollapsed}
+            expanded={railExpanded}
+            currentStage={currentStage}
+            baseUrl={baseUrl}
+            stageAttentionCounts={stageAttentionCounts}
+          />
+        )}
+
+        {isClient && clientSidebarNavigation.length > 0 && (
+          <ClientNav
+            collapsed={railCollapsed}
+            expanded={railExpanded}
+            pathname={pathname}
+            items={clientSidebarNavigation}
+          />
+        )}
+
+        {isAdmin && workspaceItems.length > 0 && (
+          <WorkspaceNav
+            collapsed={railCollapsed}
+            expanded={railExpanded}
+            pathname={pathname}
+            items={workspaceItems}
+            iconMap={ADMIN_ROUTE_ICONS}
+            isEmployee={false}
+          />
+        )}
+
+        {isEmployee && workspaceItems.length > 0 && (
+          <WorkspaceNav
+            collapsed={railCollapsed}
+            expanded={railExpanded}
+            pathname={pathname}
+            items={workspaceItems}
+            iconMap={EMPLOYEE_ROUTE_ICONS}
+            isEmployee={true}
+          />
+        )}
+      </div>
+
+      <div className="shrink-0 space-y-2 border-t border-sidebar-border p-3">
+        <NavTooltip collapsed={railCollapsed} label={isClient ? 'Sign out' : 'Logout'}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onLogout}
+            className={cn(
+              'h-10 w-full justify-start gap-2 rounded-md border-sidebar-border bg-background/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent',
+              railCollapsed && 'justify-center px-0',
+              !isClient && 'text-destructive hover:bg-destructive/10 hover:text-destructive',
+            )}
+          >
+            <LogOut className="size-[18px] shrink-0 stroke-[1.75]" />
+            {railExpanded && <span>{isClient ? 'Sign out' : 'Logout'}</span>}
+          </Button>
+        </NavTooltip>
+      </div>
+    </>
+  );
+}
+
 // ─── Main layout ──────────────────────────────────────────────────────────────
 
 export function DashboardLayout({
@@ -360,6 +521,8 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = useMemo(() => searchParams.toString(), [searchParams]);
   const [expanded, setExpanded] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [, startTransition] = useTransition();
@@ -410,6 +573,11 @@ export function DashboardLayout({
   const notificationsHref = isAdmin ? '/admin/notifications' : '/employee/notifications';
   const sidebarDisplayName = user.name?.trim() || user.email.split('@')[0] || 'User';
   const sidebarInitial = sidebarDisplayName.charAt(0).toUpperCase() || 'U';
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname, searchKey]);
 
   useEffect(() => {
     if (!isAdminOrEmployee) return;
@@ -457,6 +625,27 @@ export function DashboardLayout({
     setStageAttentionCounts(unreadByStage);
   }, [unreadByStage]);
 
+  const sidebarColumnProps: Omit<DashboardSidebarColumnProps, 'interactiveCollapse'> = {
+    pathname,
+    sidebarDisplayName,
+    sidebarInitial,
+    showExpanded,
+    collapsed,
+    onToggleExpand: toggleExpanded,
+    isAdmin,
+    isEmployee,
+    isAdminOrEmployee,
+    isClient,
+    baseUrl,
+    currentStage,
+    workspaceItems,
+    clientSidebarNavigation,
+    notificationsHref,
+    sidebarNotificationCount,
+    stageAttentionCounts,
+    onLogout: handleLogout,
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
       <div
@@ -466,126 +655,50 @@ export function DashboardLayout({
         <aside
           suppressHydrationWarning
           className={cn(
-            'flex h-full max-h-full min-h-0 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
+            'hidden h-full max-h-full min-h-0 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex',
             hydrated && 'transition-[width] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
             showExpanded ? 'w-[260px]' : 'w-[72px]',
           )}
         >
-          {/* Brand + collapse */}
-          <div
-            className={cn(
-              'flex shrink-0 items-center gap-3 border-b border-sidebar-border py-3',
-              showExpanded ? 'px-4' : 'flex-col gap-3 px-2 pt-4',
-            )}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-1 ring-black/5">
-                <span className="text-sm font-bold tracking-tight">{sidebarInitial}</span>
-              </div>
-              {showExpanded && (
-                <span className="truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground">
-                  {sidebarDisplayName}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={toggleExpanded}
-              aria-expanded={expanded}
-              aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-              className={cn(
-                'flex size-9 shrink-0 items-center justify-center rounded-full border border-sidebar-border bg-background/80 text-muted-foreground shadow-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                showExpanded ? '' : 'mx-auto',
-              )}
-            >
-              {showExpanded ? (
-                <ChevronsLeft className="size-[18px] stroke-[1.75]" />
-              ) : (
-                <ChevronsRight className="size-[18px] stroke-[1.75]" />
-              )}
-            </button>
-          </div>
-
-          <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-            {isAdminOrEmployee && (
-              <NotificationsNav
-                collapsed={collapsed}
-                expanded={showExpanded}
-                pathname={pathname}
-                href={notificationsHref}
-                notificationCount={sidebarNotificationCount}
-              />
-            )}
-
-            {isAdminOrEmployee && (
-              <StageNav
-                collapsed={collapsed}
-                expanded={showExpanded}
-                currentStage={currentStage}
-                baseUrl={baseUrl}
-                stageAttentionCounts={stageAttentionCounts}
-              />
-            )}
-
-            {isClient && clientSidebarNavigation.length > 0 && (
-              <ClientNav
-                collapsed={collapsed}
-                expanded={showExpanded}
-                pathname={pathname}
-                items={clientSidebarNavigation}
-              />
-            )}
-
-            {isAdmin && workspaceItems.length > 0 && (
-              <WorkspaceNav
-                collapsed={collapsed}
-                expanded={showExpanded}
-                pathname={pathname}
-                items={workspaceItems}
-                iconMap={ADMIN_ROUTE_ICONS}
-                isEmployee={false}
-              />
-            )}
-
-            {isEmployee && workspaceItems.length > 0 && (
-              <WorkspaceNav
-                collapsed={collapsed}
-                expanded={showExpanded}
-                pathname={pathname}
-                items={workspaceItems}
-                iconMap={EMPLOYEE_ROUTE_ICONS}
-                isEmployee={true}
-              />
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="shrink-0 space-y-2 border-t border-sidebar-border p-3">
-            <NavTooltip collapsed={collapsed} label={isClient ? 'Sign out' : 'Logout'}>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleLogout}
-                className={cn(
-                  'h-10 w-full justify-start gap-2 rounded-md border-sidebar-border bg-background/60 text-sidebar-foreground shadow-sm transition-colors hover:bg-sidebar-accent',
-                  collapsed && 'justify-center px-0',
-                  !isClient && 'text-destructive hover:bg-destructive/10 hover:text-destructive',
-                )}
-              >
-                <LogOut className="size-[18px] shrink-0 stroke-[1.75]" />
-                {showExpanded && <span>{isClient ? 'Sign out' : 'Logout'}</span>}
-              </Button>
-            </NavTooltip>
-          </div>
+          <DashboardSidebarColumn {...sidebarColumnProps} interactiveCollapse />
         </aside>
 
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetContent
+            side="left"
+            className="flex h-dvh max-h-dvh w-[min(100vw-2.5rem,300px)] max-w-[min(100vw-2.5rem,300px)] flex-col gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground [&>button]:text-sidebar-foreground"
+          >
+            <SheetTitle className="sr-only">Main navigation</SheetTitle>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <DashboardSidebarColumn {...sidebarColumnProps} interactiveCollapse={false} />
+            </div>
+          </SheetContent>
+        </Sheet>
+
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-            {isAdminOrEmployee && <GlobalSearch userRole={user.role} />}
-            {isClient && <div />}
-            <NotificationBell userId={user.id} role={user.role} />
+          <header className="flex h-14 min-h-14 shrink-0 items-center gap-2 border-b border-border bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-4 sm:px-6">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 md:hidden"
+              aria-label="Open navigation menu"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu className="size-5 stroke-[1.75]" />
+            </Button>
+            {isAdminOrEmployee ? (
+              <div className="min-w-0 flex-1 md:max-w-md">
+                <GlobalSearch userRole={user.role} />
+              </div>
+            ) : (
+              <div className="min-w-0 flex-1 md:hidden" aria-hidden />
+            )}
+            <div className="ml-auto flex shrink-0 items-center">
+              <NotificationBell userId={user.id} role={user.role} />
+            </div>
           </header>
-          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 pb-6 text-foreground sm:p-6">
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-foreground sm:p-6">
             {children}
           </main>
         </div>

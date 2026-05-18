@@ -5,6 +5,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { logTicketActivityAction } from '@/app/actions/activity';
+import { sendTicketNotificationEmail } from '@/lib/email/ticket-notification-email';
 
 type CreateClientTicketResult =
   | { ok: true; message: string }
@@ -118,6 +119,16 @@ export async function createClientTicketAction(
   if (staffInserts.length > 0) {
     const { error: nErr } = await adminClient.from('notifications').insert(staffInserts);
     if (nErr) console.error('notifications insert (new ticket):', nErr.message);
+    else {
+      for (const row of staffInserts) {
+        void sendTicketNotificationEmail({
+          recipientUserId: row.recipient_id,
+          ticketId: row.ticket_id,
+          templateId: 'staff-new-client-case',
+          vars: { summaryLine: notifyBody },
+        }).catch((e) => console.error('[ticket email]', e));
+      }
+    }
   }
 
   revalidatePath('/client');

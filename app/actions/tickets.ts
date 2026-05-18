@@ -5,6 +5,11 @@ import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { sendTicketMessageAction } from '@/app/actions/messages';
 import { logTicketActivityAction } from '@/app/actions/activity';
+import {
+  createTicketNotificationWithEmail,
+  sendTicketNotificationEmail,
+  templateIdForClientStage,
+} from '@/lib/email/ticket-notification-email';
 import type { TicketStage } from '@/lib/types';
 
 export async function updateTicketStageAction(ticketId: string, toStage: TicketStage, note?: string) {
@@ -19,6 +24,19 @@ export async function updateTicketStageAction(ticketId: string, toStage: TicketS
   });
 
   if (error) throw new Error(error.message);
+
+  const clientStageTpl = templateIdForClientStage(toStage);
+  if (clientStageTpl) {
+    const { data: tClient } = await supabase.from('tickets').select('client_id').eq('id', ticketId).maybeSingle();
+    if (tClient?.client_id) {
+      void sendTicketNotificationEmail({
+        recipientUserId: tClient.client_id,
+        ticketId,
+        templateId: clientStageTpl,
+        vars: {},
+      }).catch((e) => console.error('[ticket email]', e));
+    }
+  }
 
   // Log activity
   await logTicketActivityAction({
@@ -41,31 +59,32 @@ export async function updateTicketStageAction(ticketId: string, toStage: TicketS
     .maybeSingle();
   const { data: me } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
   const actorName = me?.full_name?.trim() || 'Staff';
-  const stageTitle = `Stage move needed`;
-  const stageBody = `Case #${ticket?.public_ref ?? ticketId} moved to ${toStage} by ${actorName}.`;
+  const stageVars = {
+    casePublicRef: String(ticket?.public_ref ?? ticketId),
+    toStage,
+    actorName,
+  };
 
   if (ticket?.assigned_employee_id && ticket.assigned_employee_id !== user.id) {
-    const { error: assignedErr } = await supabase.rpc('create_ticket_notification', {
+    await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: ticket.assigned_employee_id,
       p_ticket_id: ticketId,
       p_type: 'stage_move_needed',
-      p_title: stageTitle,
-      p_body: stageBody,
+      templateId: 'staff-stage-move-assignee',
+      vars: stageVars,
     });
-    if (assignedErr) console.error('create_ticket_notification:', assignedErr.message);
   }
 
   const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin');
   for (const admin of admins ?? []) {
     if (admin.id === user.id) continue;
-    const { error: adminErr } = await supabase.rpc('create_ticket_notification', {
+    await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: admin.id,
       p_ticket_id: ticketId,
       p_type: 'stage_move_needed',
-      p_title: stageTitle,
-      p_body: stageBody,
+      templateId: 'staff-stage-move-admin',
+      vars: stageVars,
     });
-    if (adminErr) console.error('create_ticket_notification:', adminErr.message);
   }
 
   revalidatePath('/admin/tickets/' + ticketId);
@@ -100,6 +119,22 @@ export async function clientDraftResponseAction(
 
   if (trimmed) {
     await sendTicketMessageAction(ticketId, trimmed, { isInternal: false });
+  }
+
+  const { data: tDraft } = await supabase
+    .from('tickets')
+    .select('assigned_employee_id')
+    .eq('id', ticketId)
+    .maybeSingle();
+  const { data: meDraft } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+  const nmDraft = meDraft?.full_name?.trim() || 'Client';
+  if (tDraft?.assigned_employee_id && action === 'approve' && !trimmed) {
+    void sendTicketNotificationEmail({
+      recipientUserId: tDraft.assigned_employee_id,
+      ticketId,
+      templateId: 'employee-client-draft-approved',
+      vars: { clientName: nmDraft },
+    }).catch((e) => console.error('[ticket email]', e));
   }
 
   revalidatePath('/client/cases/' + ticketId);
@@ -189,21 +224,20 @@ export async function staffReviewDraftAction(args: {
     .maybeSingle();
 
   if (ticket?.assigned_employee_id && ticket.assigned_employee_id !== user.id) {
-    const title = args.decision === 'approved' ? 'Draft Approved' : 'Draft Rejected';
-    const body =
+    const templateId =
       args.decision === 'approved'
-        ? `Draft for #${ticket.public_ref ?? args.ticketId} was approved by ${actorName}.`
-        : `Draft for #${ticket.public_ref ?? args.ticketId} was rejected by ${actorName}.`;
-    const { error: notifyErr } = await supabase.rpc('create_ticket_notification', {
+        ? 'staff-draft-review-approved-assignee'
+        : 'staff-draft-review-rejected-assignee';
+    await createTicketNotificationWithEmail(supabase, {
       p_recipient_id: ticket.assigned_employee_id,
       p_ticket_id: args.ticketId,
       p_type: args.decision === 'approved' ? 'draft_approved' : 'draft_rejected',
-      p_title: title,
-      p_body: body,
+      templateId,
+      vars: {
+        actorName,
+        casePublicRef: String(ticket.public_ref ?? args.ticketId),
+      },
     });
-    if (notifyErr) {
-      console.error('create_ticket_notification:', notifyErr.message);
-    }
   }
 
   revalidatePath('/admin/tickets/' + args.ticketId);
@@ -224,6 +258,22 @@ export async function submitClientInformationAction(ticketId: string) {
     p_ticket_id: ticketId,
   });
   if (error) throw new Error(error.message);
+
+  const { data: tSubmit } = await supabase
+    .from('tickets')
+    .select('assigned_employee_id')
+    .eq('id', ticketId)
+    .maybeSingle();
+  const { data: meSubmit } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+  const nmSubmit = meSubmit?.full_name?.trim() || 'Client';
+  if (tSubmit?.assigned_employee_id) {
+    void sendTicketNotificationEmail({
+      recipientUserId: tSubmit.assigned_employee_id,
+      ticketId,
+      templateId: 'employee-client-info-submitted',
+      vars: { clientName: nmSubmit },
+    }).catch((e) => console.error('[ticket email]', e));
+  }
 
   revalidatePath('/client/cases/' + ticketId);
   revalidatePath('/admin/tickets/' + ticketId);
