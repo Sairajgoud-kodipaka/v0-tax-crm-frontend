@@ -14,6 +14,10 @@ export async function sendSmtpMail(opts: {
   subject: string;
   text: string;
   html: string;
+  /** Display name shown in From field, e.g. employee's name */
+  fromName?: string;
+  /** Email address for Reply-To header, e.g. employee's email */
+  replyTo?: string;
 }): Promise<void> {
   if (!isSmtpConfigured()) return;
 
@@ -30,11 +34,15 @@ export async function sendSmtpMail(opts: {
     },
   });
 
+  const baseFrom = process.env.MAIL_FROM!.trim();
+  const from = opts.fromName ? `"${opts.fromName}" <${baseFrom}>` : baseFrom;
+
   await transporter.sendMail({
-    from: process.env.MAIL_FROM!.trim(),
+    from,
     to: opts.to,
     subject: opts.subject,
     text: opts.text,
     html: opts.html,
+    ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
   });
 }

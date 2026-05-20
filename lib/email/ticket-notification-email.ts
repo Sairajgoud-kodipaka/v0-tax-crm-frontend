@@ -14,6 +14,30 @@ import type { UserRole } from '@/lib/types';
 
 export type { EmailTemplateId, TemplateVars };
 
+async function fetchAssignedEmployee(
+  sr: ReturnType<typeof createServiceRoleClient>,
+  ticketId: string,
+): Promise<{ name: string; email: string } | null> {
+  const { data: ticket } = await sr
+    .from('tickets')
+    .select('assigned_employee_id')
+    .eq('id', ticketId)
+    .maybeSingle();
+  if (!ticket?.assigned_employee_id) return null;
+
+  const { data: emp } = await sr
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', ticket.assigned_employee_id)
+    .maybeSingle();
+  if (!emp?.email?.trim()) return null;
+
+  return {
+    name: emp.full_name?.trim() || emp.email.trim(),
+    email: emp.email.trim(),
+  };
+}
+
 export async function createTicketNotificationWithEmail(
   supabase: SupabaseClient<Database>,
   params: {
@@ -62,13 +86,18 @@ export async function createTicketNotificationWithEmail(
     portalUrl,
   });
 
+  let fromName: string | undefined;
+  let replyTo: string | undefined;
+  if (role === 'client') {
+    const emp = await fetchAssignedEmployee(sr, params.p_ticket_id);
+    if (emp) {
+      fromName = emp.name;
+      replyTo = emp.email;
+    }
+  }
+
   try {
-    await sendSmtpMail({
-      to,
-      subject: notificationTitle,
-      text,
-      html,
-    });
+    await sendSmtpMail({ to, subject: notificationTitle, text, html, fromName, replyTo });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[ticket email]', msg);
@@ -110,13 +139,18 @@ export async function sendTicketNotificationEmail(params: {
     portalUrl,
   });
 
+  let fromName: string | undefined;
+  let replyTo: string | undefined;
+  if (role === 'client') {
+    const emp = await fetchAssignedEmployee(sr, params.ticketId);
+    if (emp) {
+      fromName = emp.name;
+      replyTo = emp.email;
+    }
+  }
+
   try {
-    await sendSmtpMail({
-      to,
-      subject: notificationTitle,
-      text,
-      html,
-    });
+    await sendSmtpMail({ to, subject: notificationTitle, text, html, fromName, replyTo });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
